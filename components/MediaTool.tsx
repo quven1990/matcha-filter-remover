@@ -1,0 +1,1153 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import {
+  MAX_IMAGE_MB,
+  MAX_VIDEO_SECONDS,
+  MatchaGL,
+  analyzeFrame,
+  type AnalyzeResult,
+  type ProcessMode,
+} from "@/lib/webgl-matcha";
+
+type MediaToolProps = {
+  mode: ProcessMode;
+  title: string;
+  subtitle: string;
+};
+
+type Kind = "image" | "video" | null;
+
+type UploadIssue = {
+  title: string;
+  detail: string;
+  tone?: "error" | "info";
+};
+
+function formatMb(bytes: number) {
+  return (bytes / (1024 * 1024)).toFixed(bytes >= 10 * 1024 * 1024 ? 0 : 1);
+}
+
+function classifyUploadIssue(file: File): UploadIssue | null {
+  const name = file.name.toLowerCase();
+  const type = (file.type || "").toLowerCase();
+  const ext = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
+
+  const imageExt = [".jpg", ".jpeg", ".png", ".webp"];
+  const videoExt = [".mp4", ".webm", ".mov"];
+  const isImage =
+    type.startsWith("image/") || imageExt.includes(ext);
+  const isVideo =
+    type.startsWith("video/") || videoExt.includes(ext);
+
+  if (ext === ".heic" || ext === ".heif" || type.includes("heic") || type.includes("heif")) {
+    return {
+      title: "HEIC / HEIF is not supported",
+      detail: "Export or convert to JPG, PNG, or WebP first, then try again.",
+    };
+  }
+  if (ext === ".gif" || type === "image/gif") {
+    return {
+      title: "GIF is not supported",
+      detail: "Use a still JPG/PNG/WebP, or an MP4/WebM clip under 30 seconds.",
+    };
+  }
+  if (ext === ".avi" || ext === ".mkv" || ext === ".flv" || type.includes("avi") || type.includes("matroska")) {
+    return {
+      title: "This video format is not supported",
+      detail: "Re-export as MP4 or WebM (under 30 seconds, max 20MB) for browser processing.",
+    };
+  }
+  if (!isImage && !isVideo) {
+    return {
+      title: "Unsupported file type",
+      detail: `“${file.name}” is not a usable photo/video. Accepted: JPG, PNG, WebP, MP4, WebM, MOV.`,
+    };
+  }
+  if (file.size <= 0) {
+    return {
+      title: "Empty file",
+      detail: "That file has no data. Pick another photo or video and try again.",
+    };
+  }
+  if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+    return {
+      title: `File is too large (${formatMb(file.size)}MB)`,
+      detail: `Keep uploads under ${MAX_IMAGE_MB}MB. Compress or trim the clip, then upload again.`,
+    };
+  }
+  return null;
+}
+
+function fileExtension(name: string) {
+  const i = name.lastIndexOf(".");
+  return i >= 0 ? name.slice(i + 1).toLowerCase() : "";
+}
+
+function baseFileName(name: string) {
+  return name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9-_]+/g, "-").replace(/^-+|-+$/g, "") || "result";
+}
+
+function pickImageExport(ext: string): { mime: string; ext: string; quality?: number } {
+  if (ext === "jpg" || ext === "jpeg") {
+    return { mime: "image/jpeg", ext: "jpg", quality: 0.92 };
+  }
+  if (ext === "webp") {
+    try {
+      const probe = document.createElement("canvas");
+      probe.width = 1;
+      probe.height = 1;
+      if (probe.toDataURL("image/webp").startsWith("data:image/webp")) {
+        return { mime: "image/webp", ext: "webp", quality: 0.92 };
+      }
+    } catch {
+      /* fall through */
+    }
+    return { mime: "image/jpeg", ext: "jpg", quality: 0.92 };
+  }
+  return { mime: "image/png", ext: "png" };
+}
+
+function pickVideoExport(preferredExt: string): { mime: string; ext: string } | null {
+  const wantMp4 = preferredExt === "mp4" || preferredExt === "mov";
+  const mp4 = ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=h264", "video/mp4"];
+  const webm = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+  const order = wantMp4 ? [...mp4, ...webm] : preferredExt === "webm" ? [...webm, ...mp4] : [...webm, ...mp4];
+  for (const mime of order) {
+    if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(mime)) {
+      return { mime, ext: mime.includes("mp4") ? "mp4" : "webm" };
+    }
+  }
+  return null;
+}
+
+export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
+  const isRemove = mode === "remove";
+  const [kind, setKind] = useState<Kind>(null);
+  const [fileName, setFileName] = useState("");
+  const [sourceExt, setSourceExt] = useState("");
+  const [strength, setStrength] = useState(82);
+  const [liquid, setLiquid] = useState(70);
+  const [grain, setGrain] = useState(27);
+  const [neutralize, setNeutralize] = useState(82);
+  const [denoise, setDenoise] = useState(55);
+  const [detail, setDetail] = useState(48);
+  const [compare, setCompare] = useState(50);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<UploadIssue | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [previewPaused, setPreviewPaused] = useState(false);
+  const [peekOriginal, setPeekOriginal] = useState(false);
+  const [videoTime, setVideoTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [analysis, setAnalysis] = useState<Pick<AnalyzeResult, "balance" | "toneRange" | "analysisMix">>({
+    balance: [1.08, 0.86, 1.12],
+    toneRange: [0, 1],
+    analysisMix: 0.72,
+  });
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const sourceCanvasRef = useRef<HTMLCanvasElement>(null);
+  const glCanvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const objectUrlRef = useRef<string | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const glRef = useRef<MatchaGL | null>(null);
+  const startTimeRef = useRef(performance.now());
+  const paramsRef = useRef({
+    strength,
+    liquid,
+    grain,
+    neutralize,
+    denoise,
+    detail,
+    analysis,
+    isRemove,
+    kind: kind as Kind,
+  });
+
+  paramsRef.current = {
+    strength,
+    liquid,
+    grain,
+    neutralize,
+    denoise,
+    detail,
+    analysis,
+    isRemove,
+    kind,
+  };
+
+  const accept =
+    "image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.webp,.mp4,.webm,.mov";
+
+  const ensureGL = useCallback(() => {
+    const canvas = glCanvasRef.current;
+    if (!canvas) return null;
+    if (!glRef.current) {
+      try {
+        glRef.current = new MatchaGL(canvas);
+      } catch {
+        setError({
+          title: "WebGL2 is required",
+          detail: "This browser cannot run the matcha effect. Try the latest Chrome, Edge, or Firefox.",
+        });
+        return null;
+      }
+    }
+    return glRef.current;
+  }, []);
+
+  const clearObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  };
+
+  const stopLoop = () => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  };
+
+  const reset = useCallback(() => {
+    stopLoop();
+    clearObjectUrl();
+    setKind(null);
+    setFileName("");
+    setSourceExt("");
+    setReady(false);
+    setError(null);
+    setCompare(50);
+    setPeekOriginal(false);
+    setPreviewPaused(false);
+    setVideoTime(0);
+    setVideoDuration(0);
+    glRef.current?.resetTemporal();
+    const v = videoRef.current;
+    if (v) {
+      v.pause();
+      v.removeAttribute("src");
+      v.load();
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      stopLoop();
+      clearObjectUrl();
+      glRef.current?.dispose();
+      glRef.current = null;
+    },
+    [],
+  );
+
+  const drawFrame = useCallback(() => {
+    const gl = ensureGL();
+    const source = sourceCanvasRef.current;
+    const video = videoRef.current;
+    const p = paramsRef.current;
+    if (!gl || !source) return false;
+
+    if (p.kind === "video" && video) {
+      const ctx = source.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return false;
+      if (video.videoWidth > 0) {
+        if (source.width !== video.videoWidth || source.height !== video.videoHeight) {
+          source.width = video.videoWidth;
+          source.height = video.videoHeight;
+          gl.resetTemporal();
+        }
+        // Keep painting while playing; also hold last frame if briefly stalled
+        if (!video.paused || video.currentTime > 0) {
+          ctx.drawImage(video, 0, 0);
+        }
+      }
+    }
+
+    if (!source.width) return false;
+    gl.upload(source, source.width, source.height);
+    const t = (performance.now() - startTimeRef.current) / 1000;
+
+    if (p.isRemove) {
+      gl.renderRemove({
+        neutralize: p.neutralize,
+        denoise: p.denoise,
+        detail: p.detail,
+        temporal: p.kind === "video" ? 100 : 0,
+        balance: p.analysis.balance,
+        toneRange: p.analysis.toneRange,
+        analysisMix: p.analysis.analysisMix,
+      });
+    } else {
+      gl.renderApply({
+        strength: p.strength,
+        liquid: p.liquid,
+        grain: p.grain,
+        time: t,
+      });
+    }
+    setReady(true);
+    return true;
+  }, [ensureGL]);
+
+  const loop = useCallback(() => {
+    drawFrame();
+    const p = paramsRef.current;
+    // Apply always animates; remove video uses temporal path each frame
+    if (p.kind === "image" && p.isRemove) {
+      rafRef.current = null;
+      return;
+    }
+    if (p.kind) {
+      rafRef.current = requestAnimationFrame(loop);
+    }
+  }, [drawFrame]);
+
+  const startLoop = useCallback(() => {
+    stopLoop();
+    rafRef.current = requestAnimationFrame(loop);
+  }, [loop]);
+
+  useEffect(() => {
+    if (!kind) return;
+    if (isRemove && kind === "image") {
+      drawFrame();
+      return;
+    }
+    startLoop();
+    return () => stopLoop();
+  }, [kind, isRemove, strength, liquid, grain, neutralize, denoise, detail, analysis, drawFrame, startLoop]);
+
+  // Seamless preview loop: when the clip wraps, clear temporal history so end≠start doesn't smear.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || kind !== "video") return;
+    let lastTime = 0;
+    const onTimeUpdate = () => {
+      if (video.currentTime + 0.35 < lastTime) {
+        glRef.current?.resetTemporal();
+      }
+      lastTime = video.currentTime;
+      setVideoTime(video.currentTime);
+      if (Number.isFinite(video.duration)) setVideoDuration(video.duration);
+    };
+    const onEnded = () => {
+      if (previewPaused) return;
+      video.currentTime = 0;
+      glRef.current?.resetTemporal();
+      void video.play().catch(() => undefined);
+    };
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("ended", onEnded);
+    return () => {
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("ended", onEnded);
+    };
+  }, [kind, previewPaused]);
+
+  const togglePreviewPlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || kind !== "video") return;
+    if (previewPaused) {
+      setPreviewPaused(false);
+      void video.play().catch(() => undefined);
+      startLoop();
+    } else {
+      video.pause();
+      setPreviewPaused(true);
+      drawFrame();
+    }
+  }, [kind, previewPaused, drawFrame, startLoop]);
+
+  const scrubVideo = (next: number) => {
+    const video = videoRef.current;
+    if (!video || kind !== "video") return;
+    const t = Math.max(0, Math.min(video.duration || next, next));
+    video.currentTime = t;
+    setVideoTime(t);
+    glRef.current?.resetTemporal();
+    // Stay paused while scrubbing so the chosen frame is inspectable
+    if (!video.paused) {
+      video.pause();
+      setPreviewPaused(true);
+    }
+    requestAnimationFrame(() => drawFrame());
+  };
+
+  const formatClock = (sec: number) => {
+    if (!Number.isFinite(sec) || sec < 0) return "0:00";
+    const s = Math.floor(sec % 60)
+      .toString()
+      .padStart(2, "0");
+    return `${Math.floor(sec / 60)}:${s}`;
+  };
+
+  const runAnalyze = (source: HTMLCanvasElement): AnalyzeResult | null => {
+    const ctx = source.getContext("2d", { willReadFrequently: true });
+    if (!ctx || !source.width) return null;
+    const result = analyzeFrame(ctx, source.width, source.height);
+    const nextAnalysis = {
+      balance: result.balance,
+      toneRange: result.toneRange,
+      analysisMix: result.analysisMix,
+    };
+    setAnalysis(nextAnalysis);
+    setNeutralize(result.neutralize);
+    setDenoise(result.denoise);
+    setDetail(result.detail);
+    return result;
+  };
+
+  const fail = (issue: UploadIssue) => {
+    clearObjectUrl();
+    setKind(null);
+    setReady(false);
+    setFileName("");
+    setSourceExt("");
+    setError(issue);
+    setPreviewPaused(false);
+    setVideoTime(0);
+    setVideoDuration(0);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const onFile = async (file: File | null) => {
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    stopLoop();
+    clearObjectUrl();
+    setReady(false);
+    setKind(null);
+    startTimeRef.current = performance.now();
+    glRef.current?.resetTemporal();
+
+    try {
+      if (!ensureGL()) {
+        fail({
+          title: "WebGL2 is required",
+          detail: "This browser cannot run the matcha effect. Try the latest Chrome, Edge, or Firefox.",
+        });
+        return;
+      }
+
+      const early = classifyUploadIssue(file);
+      if (early) {
+        fail(early);
+        return;
+      }
+
+      const type = (file.type || "").toLowerCase();
+      const name = file.name.toLowerCase();
+      const isVideo =
+        type.startsWith("video/") ||
+        name.endsWith(".mp4") ||
+        name.endsWith(".webm") ||
+        name.endsWith(".mov");
+      const isImage =
+        type.startsWith("image/") ||
+        name.endsWith(".jpg") ||
+        name.endsWith(".jpeg") ||
+        name.endsWith(".png") ||
+        name.endsWith(".webp");
+
+      const url = URL.createObjectURL(file);
+      objectUrlRef.current = url;
+      setFileName(file.name);
+      setSourceExt(fileExtension(file.name));
+      const source = sourceCanvasRef.current;
+      if (!source) {
+        fail({
+          title: "Preview failed to start",
+          detail: "Refresh the page and try uploading again.",
+        });
+        return;
+      }
+
+      if (isImage) {
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () =>
+            reject(
+              Object.assign(new Error("decode"), {
+                issue: {
+                  title: "Could not read that image",
+                  detail:
+                    "The file may be damaged or in an unsupported encoding. Re-save as JPG or PNG and retry.",
+                } satisfies UploadIssue,
+              }),
+            );
+          img.src = url;
+        });
+        if (!img.width || !img.height) {
+          fail({
+            title: "Image has no usable dimensions",
+            detail: "Pick another photo (JPG, PNG, or WebP) and try again.",
+          });
+          return;
+        }
+        const maxSide = 1600;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        source.width = Math.max(1, Math.round(img.width * scale));
+        source.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = source.getContext("2d", { willReadFrequently: true });
+        if (!ctx) {
+          fail({
+            title: "Canvas unavailable",
+            detail: "Your browser blocked 2D canvas access. Try another browser or disable strict privacy blocking.",
+          });
+          return;
+        }
+        ctx.drawImage(img, 0, 0, source.width, source.height);
+        if (isRemove) {
+          const analyzed = runAnalyze(source);
+          if (analyzed) {
+            paramsRef.current = {
+              ...paramsRef.current,
+              neutralize: analyzed.neutralize,
+              denoise: analyzed.denoise,
+              detail: analyzed.detail,
+              analysis: {
+                balance: analyzed.balance,
+                toneRange: analyzed.toneRange,
+                analysisMix: analyzed.analysisMix,
+              },
+              kind: "image",
+            };
+          }
+        }
+        setKind("image");
+        setCompare(50);
+        setPeekOriginal(false);
+      } else if (isVideo) {
+        const video = videoRef.current;
+        if (!video) {
+          fail({
+            title: "Video player unavailable",
+            detail: "Refresh the page and try again.",
+          });
+          return;
+        }
+        await new Promise<void>((resolve, reject) => {
+          const onMeta = () => {
+            if (Number.isFinite(video.duration) && video.duration > MAX_VIDEO_SECONDS) {
+              reject(
+                Object.assign(new Error("duration"), {
+                  issue: {
+                    title: `Video is too long (${Math.ceil(video.duration)}s)`,
+                    detail: `Trim to ${MAX_VIDEO_SECONDS} seconds or less for smooth on-device preview and export.`,
+                  } satisfies UploadIssue,
+                }),
+              );
+              return;
+            }
+            if (!video.videoWidth || !video.videoHeight) {
+              reject(
+                Object.assign(new Error("dims"), {
+                  issue: {
+                    title: "Could not decode video frames",
+                    detail:
+                      "This codec may not play in your browser. Re-export as H.264 MP4 or VP9 WebM and retry.",
+                  } satisfies UploadIssue,
+                }),
+              );
+              return;
+            }
+            resolve();
+          };
+          video.addEventListener("loadedmetadata", onMeta, { once: true });
+          video.addEventListener(
+            "error",
+            () =>
+              reject(
+                Object.assign(new Error("video"), {
+                  issue: {
+                    title: "Could not read that video",
+                    detail:
+                      "File may be damaged or use an unsupported codec. Try MP4 (H.264) or WebM under 30s / 20MB.",
+                  } satisfies UploadIssue,
+                }),
+              ),
+            { once: true },
+          );
+          video.src = url;
+          video.load();
+        });
+        source.width = video.videoWidth || 1280;
+        source.height = video.videoHeight || 720;
+        const ctx = source.getContext("2d", { willReadFrequently: true });
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, source.width, source.height);
+          if (isRemove) {
+            const analyzed = runAnalyze(source);
+            if (analyzed) {
+              paramsRef.current = {
+                ...paramsRef.current,
+                neutralize: analyzed.neutralize,
+                denoise: analyzed.denoise,
+                detail: analyzed.detail,
+                analysis: {
+                  balance: analyzed.balance,
+                  toneRange: analyzed.toneRange,
+                  analysisMix: analyzed.analysisMix,
+                },
+                kind: "video",
+              };
+            }
+          }
+        }
+        setKind("video");
+        setCompare(50);
+        setPeekOriginal(false);
+        // Preview always seamless-loops so slider tuning never hits a dead end.
+        // Export path turns loop off explicitly.
+        video.loop = true;
+        setPreviewPaused(false);
+        setVideoTime(0);
+        setVideoDuration(Number.isFinite(video.duration) ? video.duration : 0);
+        await video.play().catch(() => undefined);
+      } else {
+        fail({
+          title: "Unsupported file type",
+          detail: "Accepted: JPG, PNG, WebP, MP4, WebM, MOV.",
+        });
+        return;
+      }
+      setError(null);
+    } catch (e) {
+      const issue =
+        e && typeof e === "object" && "issue" in e
+          ? (e as { issue: UploadIssue }).issue
+          : {
+              title: "Upload failed",
+              detail: e instanceof Error ? e.message : "Something went wrong while reading that file.",
+            };
+      fail(issue);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onDrop = (ev: DragEvent) => {
+    ev.preventDefault();
+    setDragOver(false);
+    const file = ev.dataTransfer.files?.[0];
+    if (!file) {
+      setError({
+        title: "No file detected",
+        detail: "Drop a single JPG, PNG, WebP, MP4, WebM, or MOV file onto this area.",
+      });
+      return;
+    }
+    void onFile(file);
+  };
+
+  const download = async () => {
+    const glCanvas = glCanvasRef.current;
+    if (!glCanvas || !ready) return;
+    const stem = baseFileName(fileName);
+
+    if (kind === "image") {
+      const fmt = pickImageExport(sourceExt || "png");
+      const a = document.createElement("a");
+      a.href =
+        fmt.quality != null
+          ? glCanvas.toDataURL(fmt.mime, fmt.quality)
+          : glCanvas.toDataURL(fmt.mime);
+      a.download = `${mode}-matcha-${stem}.${fmt.ext}`;
+      a.click();
+      return;
+    }
+
+    const video = videoRef.current;
+    const source = sourceCanvasRef.current;
+    if (!video || !source || !glCanvas) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const gl = ensureGL();
+      if (!gl) throw new Error("WebGL2 required");
+      stopLoop();
+      gl.resetTemporal();
+
+      const picked = pickVideoExport(sourceExt || "webm");
+      if (!picked) {
+        setError({
+          title: "Video export not supported here",
+          detail: "This browser cannot record canvas video. Try Chrome/Edge, or download a photo as JPG/PNG instead.",
+        });
+        return;
+      }
+
+      const stream = glCanvas.captureStream(30);
+      const recorder = new MediaRecorder(stream, { mimeType: picked.mime });
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (ev) => {
+        if (ev.data.size) chunks.push(ev.data);
+      };
+      const done = new Promise<Blob>((resolve) => {
+        recorder.onstop = () => resolve(new Blob(chunks, { type: picked.mime.split(";")[0] }));
+      });
+
+      const ctx = source.getContext("2d", { willReadFrequently: true });
+      video.loop = false;
+      video.currentTime = 0;
+      await video.play();
+      recorder.start(100);
+
+      const exportLoop = () => {
+        if (!ctx || video.paused || video.ended) return;
+        if (source.width !== video.videoWidth && video.videoWidth > 0) {
+          source.width = video.videoWidth;
+          source.height = video.videoHeight;
+        }
+        ctx.drawImage(video, 0, 0);
+        gl.upload(source, source.width, source.height);
+        if (isRemove) {
+          gl.renderRemove({
+            neutralize,
+            denoise,
+            detail,
+            temporal: 100,
+            balance: analysis.balance,
+            toneRange: analysis.toneRange,
+            analysisMix: analysis.analysisMix,
+          });
+        } else {
+          gl.renderApply({
+            strength,
+            liquid,
+            grain,
+            time: video.currentTime,
+          });
+        }
+        requestAnimationFrame(exportLoop);
+      };
+      exportLoop();
+
+      await new Promise<void>((resolve) => {
+        video.onended = () => resolve();
+      });
+      recorder.stop();
+      video.pause();
+      const blob = await done;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${mode}-matcha-${stem}.${picked.ext}`;
+      a.click();
+
+      // Chrome often cannot encode MP4; if we fell back, mention it once softly via fine banner only when mismatch
+      if (
+        (sourceExt === "mp4" || sourceExt === "mov") &&
+        picked.ext === "webm"
+      ) {
+        setError({
+          title: "Saved as WebM (browser limit)",
+          detail:
+            "This browser cannot record MP4 from canvas, so the download is WebM. Convert to MP4 in any editor if needed.",
+          tone: "info",
+        });
+      }
+
+      video.loop = true;
+      setPreviewPaused(false);
+      await video.play().catch(() => undefined);
+      startLoop();
+    } catch {
+      setError({
+        title: "Video export failed",
+        detail: "Try a shorter clip (under 30s), or download a still photo in its original format.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadLabel = (() => {
+    if (!ready) return "Download";
+    if (kind === "image") {
+      const fmt = pickImageExport(sourceExt || "png");
+      return `Download ${fmt.ext.toUpperCase()}`;
+    }
+    const prefer = sourceExt === "mov" ? "MP4" : (sourceExt || "video").toUpperCase();
+    return `Download ${prefer}`;
+  })();
+
+  const splitPos = peekOriginal ? 100 : Math.max(0, Math.min(100, compare));
+  const beforeLabel = isRemove ? "With filter" : "Original";
+  const afterLabel = isRemove ? "Filter removed" : "Matcha applied";
+  const showSplitLabels = ready && !peekOriginal && splitPos > 8 && splitPos < 92;
+
+  return (
+    <section className="tool-shell">
+      <div className="tool-intro">
+        <p className="eyebrow">{isRemove ? "Remove workspace" : "Apply workspace"} · On-device · No upload</p>
+        <h1 className="display mt-2">{title}</h1>
+        <p className="lead mt-3">{subtitle}</p>
+        <p className="tool-howto">
+          {isRemove
+            ? "Left = your upload still with the green matcha look. Right = after we reduce that cast. Drag the split, or hold “Show original” to flash the full left-side frame."
+            : "Left = your original upload. Right = with the matcha look applied. Drag the split, or hold “Show original” to flash the untouched frame."}
+        </p>
+      </div>
+
+      <div className="tool-layout">
+        <div className="preview-column">
+          {ready && (
+            <div className="compare-legend">
+              <span className="legend-pill legend-before">{beforeLabel}</span>
+              <span className="legend-arrow">→</span>
+              <span className="legend-pill legend-after">{afterLabel}</span>
+            </div>
+          )}
+
+          <div
+            className={`preview-frame ${dragOver ? "is-dragover" : ""} ${ready ? "has-media" : ""}`}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setDragOver(false);
+            }}
+            onDrop={onDrop}
+          >
+            {!ready && (
+              <button
+                type="button"
+                className={`dropzone ${error ? "has-error" : ""} ${dragOver ? "is-dragover" : ""}`}
+                onClick={() => inputRef.current?.click()}
+                disabled={busy}
+              >
+                <span className="dropzone-kicker">{busy ? "Working" : "Step 1"}</span>
+                <span className="dropzone-title">
+                  {busy
+                    ? "Checking media…"
+                    : dragOver
+                      ? "Drop to upload"
+                      : error
+                        ? "Try another file"
+                        : "Drop a photo or short video"}
+                </span>
+                <span className="dropzone-sub">
+                  JPG, PNG, WebP, MP4, WebM, MOV · max {MAX_IMAGE_MB}MB · video ≤ {MAX_VIDEO_SECONDS}s
+                </span>
+                {error && (
+                  <div
+                    className={`error-banner dropzone-error ${error.tone === "info" ? "is-info" : ""}`}
+                    role="alert"
+                  >
+                    <div className="error-banner-title">{error.title}</div>
+                    <div className="error-banner-detail">{error.detail}</div>
+                  </div>
+                )}
+              </button>
+            )}
+
+            <div className={`compare-wrap ${ready ? "" : "sr-only"}`}>
+              <canvas ref={sourceCanvasRef} className="preview-canvas" />
+              <canvas
+                ref={glCanvasRef}
+                className="preview-canvas preview-result"
+                style={{
+                  // compare/splitPos = line from left. Clip result's left side so:
+                  // left of line = source upload, right of line = processed result.
+                  clipPath: `inset(0 0 0 ${splitPos}%)`,
+                }}
+              />
+              {ready && (
+                <>
+                  <div className="compare-divider" style={{ left: `${splitPos}%` }} aria-hidden>
+                    <span className="compare-handle" />
+                  </div>
+                  {showSplitLabels && (
+                    <>
+                      <div
+                        className="compare-label compare-label-before"
+                        style={{ maxWidth: `calc(${splitPos}% - 1rem)` }}
+                      >
+                        {beforeLabel}
+                      </div>
+                      <div
+                        className="compare-label compare-label-after"
+                        style={{ maxWidth: `calc(${100 - splitPos}% - 1rem)` }}
+                      >
+                        {afterLabel}
+                      </div>
+                    </>
+                  )}
+                  {peekOriginal && (
+                    <div className="compare-label compare-label-before compare-label-full">
+                      Full original · release to return
+                    </div>
+                  )}
+                  <div className="preview-actions">
+                    <button
+                      type="button"
+                      className={`preview-chip ${peekOriginal ? "is-active" : ""}`}
+                      onPointerDown={() => setPeekOriginal(true)}
+                      onPointerUp={() => setPeekOriginal(false)}
+                      onPointerLeave={() => setPeekOriginal(false)}
+                      onPointerCancel={() => setPeekOriginal(false)}
+                    >
+                      Hold · show original
+                    </button>
+                    {kind === "video" && (
+                      <button
+                        type="button"
+                        className="preview-chip"
+                        onClick={togglePreviewPlayback}
+                        aria-label={previewPaused ? "Play preview" : "Pause preview"}
+                      >
+                        {previewPaused ? "Play" : "Pause"}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <video ref={videoRef} className="hidden" playsInline muted />
+            <input
+              ref={inputRef}
+              type="file"
+              accept={accept}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                void onFile(file);
+                e.target.value = "";
+              }}
+            />
+          </div>
+
+          {ready && (
+            <p className="compare-hint">
+              <strong>How to compare:</strong> left = {isRemove ? "with filter" : "original"}, right ={" "}
+              {isRemove ? "filter removed" : "matcha applied"}. Drag “Compare split”, or press and hold
+              “Hold · show original”.
+            </p>
+          )}
+        </div>
+
+        <aside className="controls-panel">
+          <div className="control-block">
+            <div className="control-block-head">
+              <h2>1. Adjust effect</h2>
+              <p>{isRemove ? "Reduce green cast and grain." : "Tune liquid matcha look."}</p>
+            </div>
+
+            {isRemove ? (
+              <div className="control-stack">
+                <label className="control">
+                  <span>
+                    Color neutralize <em>{neutralize}</em>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={neutralize}
+                    onChange={(e) => setNeutralize(Number(e.target.value))}
+                  />
+                </label>
+                <label className="control">
+                  <span>
+                    Noise reduction <em>{denoise}</em>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={denoise}
+                    onChange={(e) => setDenoise(Number(e.target.value))}
+                  />
+                </label>
+                <label className="control">
+                  <span>
+                    Detail restore <em>{detail}</em>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={detail}
+                    onChange={(e) => setDetail(Number(e.target.value))}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn-ghost btn-compact"
+                  disabled={!ready || busy}
+                  onClick={() => {
+                    setNeutralize(92);
+                    setDenoise(62);
+                    setDetail(48);
+                    setCompare(50);
+                  }}
+                >
+                  Stronger remove preset
+                </button>
+              </div>
+            ) : (
+              <div className="control-stack">
+                <label className="control">
+                  <span>
+                    Filter strength <em>{strength}</em>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={strength}
+                    onChange={(e) => setStrength(Number(e.target.value))}
+                  />
+                </label>
+                <label className="control">
+                  <span>
+                    Liquid motion <em>{liquid}</em>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={liquid}
+                    onChange={(e) => setLiquid(Number(e.target.value))}
+                  />
+                </label>
+                <label className="control">
+                  <span>
+                    Film grain <em>{grain}</em>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={grain}
+                    onChange={(e) => setGrain(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
+          {ready && (
+            <div className="control-block">
+              <div className="control-block-head">
+                <h2>2. Compare</h2>
+                <p>Confirm before vs after on the same frame.</p>
+              </div>
+              <div className="control-stack">
+                {kind === "video" && (
+                  <div className="transport">
+                    <button
+                      type="button"
+                      className="btn-ghost btn-compact transport-toggle"
+                      onClick={togglePreviewPlayback}
+                      disabled={busy}
+                    >
+                      {previewPaused ? "Play" : "Pause"}
+                    </button>
+                    <label className="control transport-scrub">
+                      <span>
+                        Scrub frame <em>
+                          {formatClock(videoTime)} / {formatClock(videoDuration)}
+                        </em>
+                      </span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(0.1, videoDuration || 0.1)}
+                        step={0.01}
+                        value={Math.min(videoTime, videoDuration || videoTime)}
+                        onChange={(e) => scrubVideo(Number(e.target.value))}
+                      />
+                    </label>
+                  </div>
+                )}
+                <label className="control">
+                  <span>
+                    Compare split <em>{Math.round(splitPos)}%</em>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={compare}
+                    onChange={(e) => setCompare(Number(e.target.value))}
+                    disabled={peekOriginal}
+                  />
+                  <span className="control-caption">
+                    Drag right → line moves right. Left of line: {isRemove ? "with filter" : "original"} ·
+                    Right of line: {isRemove ? "filter removed" : "matcha applied"}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  className={`btn-secondary btn-compact ${peekOriginal ? "is-pressed" : ""}`}
+                  onPointerDown={() => setPeekOriginal(true)}
+                  onPointerUp={() => setPeekOriginal(false)}
+                  onPointerLeave={() => setPeekOriginal(false)}
+                  onPointerCancel={() => setPeekOriginal(false)}
+                >
+                  Hold to show original
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="control-block">
+            <div className="control-block-head">
+              <h2>{ready ? "3. Export" : "2. Export"}</h2>
+              <p>{ready ? "Download keeps your source format when possible." : "Upload first, then export."}</p>
+            </div>
+            <div className="action-row">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => inputRef.current?.click()}
+                disabled={busy}
+              >
+                {ready ? "Replace file" : isRemove ? "Upload & Remove" : "Upload & Apply"}
+              </button>
+              {ready && (
+                <button type="button" className="btn-secondary" onClick={download} disabled={busy}>
+                  {downloadLabel}
+                </button>
+              )}
+              {ready && (
+                <button type="button" className="btn-ghost" onClick={reset}>
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {error && (
+            <div className={`error-banner ${error.tone === "info" ? "is-info" : ""}`} role="alert">
+              <div className="error-banner-title">{error.title}</div>
+              <div className="error-banner-detail">{error.detail}</div>
+            </div>
+          )}
+
+          <p className="fineprint">
+            {isRemove
+              ? "Best-effort cleanup only. Cannot reveal hidden or censored content. Media never leaves this browser tab."
+              : "Local WebGL look inspired by the viral matcha style. Not affiliated with TikTok."}
+          </p>
+        </aside>
+      </div>
+    </section>
+  );
+}

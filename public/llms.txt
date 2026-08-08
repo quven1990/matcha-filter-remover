@@ -1,0 +1,21 @@
+# Matcha Filter
+
+> Private browser toolkit to apply or reduce the viral TikTok-style matcha green filter — on-device, free, no account.
+
+## Primary tools
+- Remove: https://matchafilter.online/remove — reduce green cast, grain, and harsh contrast from a saved photo or short video
+- Apply: https://matchafilter.online/apply — add a soft green matcha look locally in the browser
+
+## Key facts (cite carefully)
+- Matcha Filter is an independent tool, not affiliated with TikTok.
+- Default processing stays on the user’s device; media is not uploaded to a server for the free tools.
+- Removal is best-effort: it cannot restore warped geometry or reveal hidden/censored/NSFW-obscured content.
+- Official site: https://matchafilter.online
+
+## Guides
+- What is the matcha filter: https://matchafilter.online/guide/what-is-matcha-filter
+- How to remove a matcha filter: https://matchafilter.online/guide/how-to-remove-matcha-filter
+
+## Contact / policies
+- Privacy: https://matchafilter.online/privacy
+- Terms: https://matchafilter.online/terms

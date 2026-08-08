@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Matcha Filter">
+  <defs>
+    <linearGradient id="bg" x1="12" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FAF6"/>
+      <stop offset="1" stop-color="#E4EEE5"/>
+    </linearGradient>
+    <radialGradient id="leaf" cx="38%" cy="32%" r="70%">
+      <stop stop-color="#B7D9BF"/>
+      <stop offset="0.42" stop-color="#4A8F62"/>
+      <stop offset="1" stop-color="#1A4330"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1.6" flood-color="#1A4330" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#bg)"/>
+  <circle cx="32" cy="32" r="22" fill="rgba(47,107,72,0.10)"/>
+  <g filter="url(#soft)">
+    <path
+      fill="url(#leaf)"
+      d="M32 12c11.5 7.2 18 16.8 18 27.2 0 8.4-6.4 12.8-12.6 12.8-3.2 0-5.9-1.1-7.4-2.9-1.5 1.8-4.2 2.9-7.4 2.9C16.4 52 10 47.6 10 39.2 10 28.8 16.5 19.2 32 12Z"
+    />
+    <path
+      fill="none"
+      stroke="#F3F6F1"
+      stroke-opacity="0.55"
+      stroke-width="2.2"
+      stroke-linecap="round"
+      d="M32 16.5c0 10.5-1.2 19.5-4.8 28.2"
+    />
+    <path
+      fill="none"
+      stroke="#F3F6F1"
+      stroke-opacity="0.35"
+      stroke-width="1.6"
+      stroke-linecap="round"
+      d="M32 22c3.2 4.8 5.6 10.2 6.8 16.2M32 26c-3.4 4.2-5.6 9-6.6 14.6"
+    />
+  </g>
+</svg>
