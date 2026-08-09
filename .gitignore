@@ -10,3 +10,4 @@ sample-*.png
 sample-*.webp
 
 tsconfig.tsbuildinfo
+tmp/

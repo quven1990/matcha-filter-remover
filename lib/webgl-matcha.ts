@@ -1,13 +1,13 @@
 /**
- * WebGL2 matcha pipeline aligned to matchafilter.app-class look:
- * Apply — animated liquid flow, dual-neighborhood paint, olive palette, temporal grain
- * Remove — adaptive balance, cast neutralize, bilateral denoise, edge-guarded restore, temporal stillness
+ * WebGL2 matcha pipeline aimed at TikTok viral “Matcha / Wild Hearts Whisper” look:
+ * Apply — sharp liquid-glass ripples, acid-green luminance map, subject stays readable
+ * Remove — adaptive balance, acid-green neutralize, bilateral denoise, magenta-guarded restore
  */
 
 export type ProcessMode = "remove" | "apply";
 
 /** Bump when Apply/Remove shaders change so open sessions pick up new programs. */
-export const PIPELINE_REV = 4;
+export const PIPELINE_REV = 10;
 
 export type ApplyParams = {
   strength: number;
@@ -72,76 +72,99 @@ float valueNoise(vec2 p){
     f.y
   );
 }
+float fbm(vec2 p){
+  float a = 0.5;
+  float v = 0.0;
+  for (int i = 0; i < 3; i++) {
+    v += a * valueNoise(p);
+    p = p * 2.15 + vec2(13.7, 7.1);
+    a *= 0.5;
+  }
+  return v;
+}
 vec3 sampleSrc(vec2 uv){
   return texture(u_tex, clamp(uv, vec2(0.002), vec2(0.998))).rgb;
 }
-vec3 neighborhood(vec2 uv, float radius){
-  vec2 t = u_texel * radius;
-  vec3 sum = sampleSrc(uv) * 4.0;
-  sum += sampleSrc(uv + vec2(t.x, 0.0));
-  sum += sampleSrc(uv - vec2(t.x, 0.0));
-  sum += sampleSrc(uv + vec2(0.0, t.y));
-  sum += sampleSrc(uv - vec2(0.0, t.y));
-  sum += sampleSrc(uv + t);
-  sum += sampleSrc(uv - t);
-  sum += sampleSrc(uv + vec2(t.x, -t.y));
-  sum += sampleSrc(uv + vec2(-t.x, t.y));
-  return sum / 12.0;
+float sampleLuma(vec2 uv){
+  vec3 c = sampleSrc(uv);
+  return dot(c, vec3(0.299, 0.587, 0.114));
 }
 
+// TikTok-like matcha: sharp liquid-glass warp + luminance→acid-green map.
+// Keep edges crisp (no paint blur) so the subject stays recognizable.
 void main(){
   float strength = clamp(u_strength, 0.0, 1.0);
   float motion = clamp(u_liquid, 0.0, 1.0);
   float grainAmt = clamp(u_grain, 0.0, 1.0);
-  float t = u_time * (0.45 + motion * 1.25);
+  float t = u_time * (0.35 + motion * 0.95);
   vec2 uv = v_uv;
   vec2 centered = uv * 2.0 - 1.0;
 
-  float n1 = valueNoise(centered * 3.5 + vec2(t * 0.37, -t * 0.21));
-  float n2 = valueNoise(centered.yx * 5.0 + vec2(-t * 0.29, t * 0.19));
-  // finer secondary swirl for slightly richer motion than a single octave
-  float n3 = valueNoise(centered * 8.0 + vec2(t * 0.55, t * 0.33));
-  vec2 flow = vec2(
-    sin(centered.y * 10.0 + t * 2.1 + n1 * 5.0),
-    cos(centered.x * 8.0 - t * 1.6 + n2 * 4.5)
-  );
-  flow += vec2(n1 - 0.5, n2 - 0.5) * 2.4;
-  flow += vec2(n3 - 0.5, 0.5 - n3) * 0.55;
-  vec2 warped = uv + flow * (0.006 + 0.025 * motion) * strength;
+  float n1 = fbm(centered * 3.2 + vec2(t * 0.28, -t * 0.19));
+  float n2 = fbm(centered.yx * 4.4 + vec2(-t * 0.23, t * 0.17));
+  float nHi = valueNoise(centered * 14.0 + vec2(t * 0.7, -t * 0.45));
 
-  vec3 center = sampleSrc(warped);
-  vec3 soft = neighborhood(warped, 1.2 + strength * 2.3);
-  vec3 broad = neighborhood(warped + flow * u_texel * 2.0, 3.5);
-  vec3 painted = mix(center, soft, 0.38 + strength * 0.34);
-  painted = mix(painted, broad, strength * 0.20);
+  // High-frequency oily ripples (wet glass), not a big melt smear
+  vec2 flow = vec2(n1 - 0.5, n2 - 0.5) * 2.0;
+  flow += vec2(
+    sin(centered.y * 16.0 + n1 * 6.0 + t * 1.6),
+    cos(centered.x * 14.0 - n2 * 5.5 - t * 1.3)
+  ) * 0.55;
+  flow += vec2(nHi - 0.5, 0.5 - nHi) * 0.9;
 
-  // subtle chromatic fringing along flow (extra polish, kept light)
-  float chr = (0.35 + motion * 0.9) * strength;
-  vec3 fringe = vec3(
-    sampleSrc(warped + u_texel * vec2(chr, -chr * 0.2)).r,
-    painted.g,
-    sampleSrc(warped - u_texel * vec2(chr, chr * 0.15)).b
-  );
-  painted = mix(painted, fringe, 0.18 * strength);
+  float amp = (0.004 + 0.022 * motion) * strength;
+  vec2 warped = uv + flow * amp;
 
-  float luma = dot(painted, vec3(0.299, 0.587, 0.114));
-  float edge = length(center - broad);
-  float levels = mix(8.0, 4.0, strength);
-  float poster = floor(luma * levels + 0.5) / levels;
+  // Mild refraction offset — still sharp samples
+  vec2 refr = normalize(flow + 1e-4) * u_texel * (1.0 + motion * 4.5) * strength;
+  vec3 src = sampleSrc(warped);
+  vec3 srcR = sampleSrc(warped + vec2(-refr.y, refr.x) * 0.8);
+  vec3 srcB = sampleSrc(warped - vec2(-refr.y, refr.x) * 0.55);
+  vec3 base = vec3(srcR.r, src.g, srcB.b);
+  base = mix(src, base, 0.35 * strength);
 
-  vec3 shadow = vec3(0.07, 0.095, 0.035);
-  vec3 midtone = vec3(0.37, 0.47, 0.12);
-  vec3 highlight = vec3(0.83, 0.79, 0.30);
-  vec3 palette = mix(shadow, midtone, smoothstep(0.08, 0.62, poster));
-  palette = mix(palette, highlight, smoothstep(0.58, 0.96, poster));
-  palette += vec3(painted.r * 0.12, painted.g * 0.08, painted.b * 0.03);
+  float L = sampleLuma(warped);
+  float Lx = sampleLuma(warped + vec2(u_texel.x * 1.5, 0.0)) - sampleLuma(warped - vec2(u_texel.x * 1.5, 0.0));
+  float Ly = sampleLuma(warped + vec2(0.0, u_texel.y * 1.5)) - sampleLuma(warped - vec2(0.0, u_texel.y * 1.5));
+  float edge = clamp(length(vec2(Lx, Ly)) * 2.8, 0.0, 1.0);
 
-  vec3 result = mix(painted, palette, 0.44 + strength * 0.50);
-  result -= edge * (0.48 + strength * 0.70);
-  float grain = hash21(gl_FragCoord.xy + floor(u_time * 28.0)) - 0.5;
-  float grain2 = hash21(gl_FragCoord.xy * 1.37 + floor(u_time * 17.0)) - 0.5;
-  result += grain * grainAmt * 0.13;
-  result += grain2 * grainAmt * 0.045 * vec3(0.95, 1.0, 0.75);
+  // Contour / topographic shimmer along luma (viral Matcha banding)
+  float contour = abs(sin((L * 18.0 + n1 * 4.0 - t * 0.8) * 3.14159));
+  float ridge = smoothstep(0.55, 0.95, contour);
+
+  // Contrast for chrome-liquid look, but don't crush midtones to black
+  float crush = pow(clamp(L, 0.0, 1.0), mix(0.95, 0.78, strength * 0.7));
+  crush = mix(crush, crush + edge * 0.08 - ridge * 0.04, 0.5);
+
+  // Soft posterize — fewer hard bands than a full thermal bake
+  float levels = mix(12.0, 6.5, strength);
+  float poster = floor(crush * levels + 0.5) / levels;
+  poster = mix(crush, poster, 0.45 + strength * 0.25);
+
+  vec3 shadow = vec3(0.03, 0.06, 0.015);
+  vec3 deep = vec3(0.12, 0.20, 0.04);
+  vec3 midtone = vec3(0.38, 0.58, 0.08);
+  vec3 acid = vec3(0.74, 0.92, 0.14);
+  vec3 chrome = vec3(0.93, 0.97, 0.62);
+  vec3 palette = mix(shadow, deep, smoothstep(0.0, 0.25, poster));
+  palette = mix(palette, midtone, smoothstep(0.2, 0.52, poster));
+  palette = mix(palette, acid, smoothstep(0.48, 0.78, poster));
+  palette = mix(palette, chrome, smoothstep(0.74, 0.98, poster));
+
+  // Specular crests on liquid ridges / face highlights
+  palette += ridge * (0.06 + strength * 0.1) * vec3(0.95, 1.0, 0.55);
+  palette += edge * strength * 0.05 * vec3(0.7, 0.95, 0.25);
+
+  // Blend graded look with green-tinted source so identity remains
+  vec3 tinted = mix(base, base * vec3(0.55, 0.95, 0.28) + vec3(0.02, 0.06, 0.0), 0.55);
+  float gradeMix = 0.38 + strength * 0.32;
+  vec3 result = mix(tinted, palette, gradeMix);
+
+  // Micro ripple texture (structural), not heavy film grain
+  float ripple = (nHi - 0.5) * (0.04 + motion * 0.05) * strength;
+  result += ripple * vec3(0.85, 1.0, 0.4);
+  float g1 = hash21(gl_FragCoord.xy + floor(u_time * 24.0)) - 0.5;
+  result += g1 * grainAmt * 0.07;
 
   outColor = vec4(clamp(result, 0.0, 1.0), 1.0);
 }`;
@@ -206,63 +229,94 @@ vec3 adaptiveBalance(vec3 color){
   float high = max(max(color.r, color.g), color.b);
   float low = min(min(color.r, color.g), color.b);
   float saturation = high > 0.001 ? (high - low) / high : 0.0;
-  // Keep more balance on green-heavy pixels (matcha veil is saturated)
+  // Keep more balance on green/gold-heavy pixels (matcha veil is saturated)
   float greenDom = max(0.0, color.g - max(color.r, color.b));
-  float greenBoost = smoothstep(0.02, 0.18, greenDom);
+  float goldDom = max(0.0, min(color.r, color.g) - color.b);
+  float castBoost = max(smoothstep(0.02, 0.18, greenDom), smoothstep(0.06, 0.28, goldDom));
   float neutralWeight = mix(1.0, 0.45, smoothstep(0.12, 0.72, saturation));
-  neutralWeight = mix(neutralWeight, 1.0, greenBoost * 0.75);
+  neutralWeight = mix(neutralWeight, 1.0, castBoost * 0.8);
   vec3 balanced = color * mix(vec3(1.0), u_balance, u_analysisMix * neutralWeight);
   vec3 remapped = (balanced - u_toneRange.x) / max(u_toneRange.y - u_toneRange.x, 0.25);
-  return mix(balanced, remapped, u_analysisMix * 0.38);
+  return mix(balanced, remapped, u_analysisMix * 0.42);
 }
 
 vec3 neutralizeCast(vec3 color, float neutralize){
-  // Mid slider values feel stronger (ease curve) — keep softer than before so
-  // heavy olive veils don't collapse into magenta.
-  float n = pow(clamp(neutralize, 0.0, 1.0), 0.88);
+  // Ease-in so mid slider values bite harder on baked viral Matcha stills.
+  float n = pow(clamp(neutralize, 0.0, 1.0), 0.82);
   float L0 = luma(color);
+  float high0 = max(max(color.r, color.g), color.b);
+  float low0 = min(min(color.r, color.g), color.b);
+  float sat0 = high0 > 1e-4 ? (high0 - low0) / high0 : 0.0;
 
-  // Primary green excess vs red+blue — pull G down; almost no R/B refill
+  // Gold / bronze liquid-metal (R≈G >> B) — common on real TikTok Matcha exports
+  float gold = max(0.0, min(color.r, color.g) - color.b);
+  float goldPair = 1.0 - smoothstep(0.04, 0.22, abs(color.r - color.g));
+  gold *= mix(0.55, 1.0, goldPair) * smoothstep(0.08, 0.35, sat0);
+  color.r -= gold * n * 0.52;
+  color.g -= gold * n * 0.56;
+  color.b += gold * n * 0.28;
+
+  // Acid / neon chartreuse: G and often R elevated, B crushed
+  float acid = max(0.0, color.g - color.b) * 0.8 + max(0.0, color.r - color.b) * 0.4;
+  acid *= smoothstep(0.1, 0.5, color.g);
+  color.g -= acid * n * 0.62;
+  color.r -= acid * n * 0.28;
+  color.b += acid * n * 0.16;
+
+  // Primary green excess vs red+blue
   float greenExcess = max(color.g - (color.r + color.b) * 0.5, 0.0);
-  color.g -= greenExcess * n * 0.88;
-  color.r += greenExcess * n * 0.035;
-  color.b += greenExcess * n * 0.025;
+  color.g -= greenExcess * n * 0.95;
+  color.r += greenExcess * n * 0.025;
+  color.b += greenExcess * n * 0.03;
 
-  // Olive / matcha yellow-green (R and G both high vs B)
-  float olive = max(color.g - color.b, 0.0) * 0.65 + max(color.r - color.b, 0.0) * 0.22;
-  color.g -= olive * n * 0.42;
-  color.r -= olive * n * 0.16;
-  color.b += olive * n * 0.08;
+  // Olive / matcha yellow-green
+  float olive = max(color.g - color.b, 0.0) * 0.72 + max(color.r - color.b, 0.0) * 0.32;
+  color.g -= olive * n * 0.52;
+  color.r -= olive * n * 0.22;
+  color.b += olive * n * 0.12;
 
-  // Global green channel pull toward mean of R/B (veil remover)
+  // Global green channel pull toward mean of R/B
   float rb = (color.r + color.b) * 0.5;
   float veil = max(0.0, color.g - rb);
-  color.g = mix(color.g, rb, veil * n * 0.52);
+  color.g = mix(color.g, rb, veil * n * 0.62);
 
-  // Also pull when green merely dominates (dark teal / murky green footage)
   float gDom = max(0.0, color.g - max(color.r, color.b));
-  color.g -= gDom * n * 0.48;
+  color.g -= gDom * n * 0.55;
 
-  // Shadow green cleanup (TikTok heavy veils crush into shadows)
   float shadow = 1.0 - smoothstep(0.05, 0.5, L0);
-  float highlight = smoothstep(0.5, 0.92, L0);
-  color.g -= max(0.0, color.g - color.r) * shadow * 0.32 * n;
-  color.g -= max(0.0, color.g - color.b) * highlight * 0.14 * n;
+  float highlight = smoothstep(0.4, 0.92, L0);
+  color.g -= max(0.0, color.g - color.r) * shadow * 0.4 * n;
+  color.g -= max(0.0, color.g - color.b) * highlight * 0.24 * n;
 
-  // Yellow cast leftover — prefer cooling R/G over dumping blue (blue → magenta)
+  // Chrome / specular yellow crests
+  float chrome = max(0.0, (color.r + color.g) * 0.5 - color.b) * highlight;
+  color.g -= chrome * n * 0.26;
+  color.r -= chrome * n * 0.18;
+  color.b += chrome * n * 0.1;
+
+  // Yellow leftover — cool without dumping into magenta
   float yellowExcess = max((color.r + color.g) * 0.5 - color.b, 0.0);
-  color.b += yellowExcess * n * 0.16;
-  color.g -= yellowExcess * n * 0.07;
-  color.r -= yellowExcess * n * 0.08;
+  color.b += yellowExcess * n * 0.26;
+  color.g -= yellowExcess * n * 0.12;
+  color.r -= yellowExcess * n * 0.14;
 
-  // Desat remaining green hue toward luma (no R/B refill)
+  // Hard mono-cast collapse toward luma (kills leftover gold soup)
   float L = luma(color);
-  float gPull = max(0.0, color.g - L);
-  color.g -= gPull * n * 0.3;
+  float high1 = max(max(color.r, color.g), color.b);
+  float low1 = min(min(color.r, color.g), color.b);
+  float sat1 = high1 > 1e-4 ? (high1 - low1) / high1 : 0.0;
+  float mono = smoothstep(0.18, 0.55, sat1) * n;
+  color = mix(color, vec3(L), mono * 0.62);
+  color.g -= max(0.0, color.g - L) * n * 0.28;
 
-  // Floor: keep G from falling far below the cooler channels (blocks pink crash)
+  // Gentle warm-neutral bias so faces don't go grey-cyan after desat
+  float mid = smoothstep(0.12, 0.55, L) * (1.0 - smoothstep(0.7, 0.95, L));
+  color.r += mid * n * 0.035;
+  color.b += mid * n * 0.015;
+
+  // Floor: keep G from falling far below cooler channels (blocks pink crash)
   float coolMin = min(color.r, color.b);
-  color.g = max(color.g, mix(color.g, coolMin * 0.96, n * 0.7));
+  color.g = max(color.g, mix(color.g, coolMin * 0.97, n * 0.68));
 
   return color;
 }
@@ -275,48 +329,56 @@ void main(){
   vec2 uv = v_uv;
 
   vec3 center = sampleSrc(uv);
-  vec3 local = edgeNeighborhood(uv, 1.05 + denoise * 1.9, denoise);
-  vec3 smoothed = mix(center, local, denoise * 0.78);
+  // One bilateral pass (cheaper on mobile) — chaos from center vs local
+  vec3 local = edgeNeighborhood(uv, 1.4 + denoise * 2.4, denoise);
+  float chaos = clamp(length(center - local) * 2.0, 0.0, 1.0);
+  float denoiseEff = clamp(denoise + chaos * 0.18 * neutralize, 0.0, 1.0);
+  vec3 smoothed = mix(center, local, denoiseEff * 0.82);
 
   if (temp > 0.001) {
     vec3 previous = texture(u_prev, clamp(uv, vec2(0.002), vec2(0.998))).rgb;
     float lumaDelta = abs(luma(center) - luma(previous));
     float colorDelta = length(center - previous);
     float stillness = 1.0 - smoothstep(0.018, 0.115, lumaDelta + colorDelta * 0.42);
-    float temporalMix = stillness * denoise * 0.30 * temp;
+    float temporalMix = stillness * denoiseEff * 0.3 * temp;
     smoothed = mix(smoothed, previous, temporalMix);
   }
 
-  // Dual-pass neutralize — second pass stays light to avoid magenta overshoot
+  // Dual-pass neutralize (triple was too heavy for live video)
   vec3 pass1 = neutralizeCast(adaptiveBalance(smoothed), neutralize);
-  vec3 corrected = neutralizeCast(pass1, neutralize * 0.22);
-  vec3 broadSource = edgeNeighborhood(uv, 2.8 + denoise * 1.4, min(1.0, denoise + 0.18));
-  vec3 broad = neutralizeCast(adaptiveBalance(broadSource), neutralize * 0.7);
-  float edgeGuard = 1.0 - smoothstep(0.11, 0.34, length(corrected - broad));
-  vec3 detail = corrected + (corrected - broad) * restore * 0.48 * edgeGuard;
-  float contrast = 1.0 + restore * 0.08 + neutralize * 0.035;
+  vec3 corrected = neutralizeCast(pass1, neutralize * (0.28 + chaos * 0.12));
+  vec3 broadSource = edgeNeighborhood(uv, 3.0 + denoiseEff * 1.6, min(1.0, denoiseEff + 0.2));
+  vec3 broad = neutralizeCast(adaptiveBalance(broadSource), neutralize * 0.75);
+  float edgeGuard = 1.0 - smoothstep(0.08, 0.34, length(corrected - broad));
+  vec3 detail = corrected + (corrected - broad) * restore * 0.36 * edgeGuard;
+  float contrast = 1.0 + restore * 0.055 + neutralize * 0.02;
   detail = (detail - 0.5) * contrast + 0.5;
 
-  // Lift crushed midtones that matcha grade often flattens — keep it gentle so
-  // remove doesn't turn into a purple-black crush.
-  detail = mix(detail, pow(max(detail, 0.0), vec3(0.94)), neutralize * 0.12);
-
-  // recover some lift lost when pulling green out of dark frames
+  detail = mix(detail, pow(max(detail, 0.0), vec3(0.92)), neutralize * 0.14);
   float L1 = luma(detail);
   float L2 = luma(center);
-  detail += (L2 - L1) * vec3(0.18) * neutralize;
+  detail += (L2 - L1) * vec3(0.15) * neutralize;
 
-  // Strong magenta/purple repair toward warm-neutral (not pink)
   float magenta = max(0.0, (detail.r + detail.b) * 0.5 - detail.g);
-  detail.g += magenta * 0.78;
-  detail.r -= magenta * 0.3;
-  detail.b -= magenta * 0.42;
+  detail.g += magenta * 0.8;
+  detail.r -= magenta * 0.28;
+  detail.b -= magenta * 0.4;
   float purple = max(0.0, detail.b - detail.g) * max(0.0, detail.r - detail.g * 0.55);
-  detail.b -= purple * 0.75;
-  detail.r -= purple * 0.32;
+  detail.b -= purple * 0.72;
+  detail.r -= purple * 0.3;
   float redLead = max(0.0, detail.r - max(detail.g, detail.b));
-  detail.r -= redLead * 0.28 * neutralize;
-  detail.g += redLead * 0.14 * neutralize;
+  detail.r -= redLead * 0.3 * neutralize;
+  detail.g += redLead * 0.12 * neutralize;
+
+  float goldLeft = max(0.0, min(detail.r, detail.g) - detail.b);
+  detail.r -= goldLeft * neutralize * 0.35;
+  detail.g -= goldLeft * neutralize * 0.38;
+  detail.b += goldLeft * neutralize * 0.2;
+
+  // Light emboss flatten for liquid-metal stills
+  float emboss = luma(detail) - luma(broad);
+  detail -= emboss * chaos * neutralize * 0.35;
+  detail = mix(detail, broad, chaos * neutralize * 0.1);
 
   outColor = vec4(clamp(detail, 0.0, 1.0), 1.0);
 }`;
@@ -565,16 +627,21 @@ export function analyzeFrame(
 
       const high = Math.max(r, g, b);
       const sat = high > 0.001 ? (high - Math.min(r, g, b)) / high : 0;
-      // Include saturated greens — matcha filter is often high-sat olive/green
+      // Include saturated greens — viral Matcha is often neon lime / acid olive
       const greenDom = Math.max(0, g - Math.max(r, b));
-      const isMatchaHue = greenDom > 0.04 || g > (r + b) * 0.5 + 0.03;
-      if (L > 0.08 && L < 0.95 && (sat < 0.55 || isMatchaHue)) {
-        const wgt = isMatchaHue ? 1.15 : 1 - sat * 0.55;
+      const acidChartreuse = Math.max(0, g - b) * 0.7 + Math.max(0, r - b) * 0.25;
+      const isMatchaHue =
+        greenDom > 0.035 ||
+        g > (r + b) * 0.5 + 0.025 ||
+        (acidChartreuse > 0.12 && g > 0.2);
+      if (L > 0.06 && L < 0.97 && (sat < 0.62 || isMatchaHue)) {
+        const wgt = isMatchaHue ? 1.25 : 1 - sat * 0.5;
         rSum += r * wgt;
         gSum += g * wgt;
         bSum += b * wgt;
         greenCastSum += Math.max(g - (r + b) * 0.5, 0) * wgt;
-        greenCastSum += greenDom * 0.85 * wgt;
+        greenCastSum += greenDom * 0.9 * wgt;
+        greenCastSum += Math.max(0, acidChartreuse - 0.08) * 0.55 * wgt;
         yellowCastSum += Math.max((r + g) * 0.5 - b, 0) * wgt;
         weightSum += wgt;
       }
@@ -610,15 +677,23 @@ export function analyzeFrame(
   const greenCast = weightSum ? greenCastSum / weightSum : 0;
   const yellowCast = weightSum ? yellowCastSum / weightSum : 0;
   const noise = clamp01((noiseCount ? noiseSum / noiseCount : 0) * 14);
-  // Bias cast score upward so heavy matcha veils auto-pick stronger neutralize
-  const castScore = clamp01(greenCast * 7.2 + yellowCast * 2.4 + Math.max(0, gMean - rMean) * 2.8);
+  // Bias cast score upward for acid green AND gold liquid-metal (R≈G >> B)
+  const goldCast = Math.max(0, Math.min(rMean, gMean) - bMean);
+  const castScore = clamp01(
+    greenCast * 7.6 +
+      yellowCast * 3.6 +
+      goldCast * 4.2 +
+      Math.max(0, gMean - rMean) * 2.2 +
+      Math.max(0, gMean - bMean) * 1.6 +
+      Math.max(0, rMean - bMean) * 1.2,
+  );
   const crush = clamp01(1 - (high - low) / 0.86);
 
   // Strong green veils should be handled by neutralizeCast, not extreme channel gains
   // (gain-based "correction" flips olive into magenta on skin).
-  const castGuard = clamp01(greenCast * 5.5);
-  let analysisMix = clamp01(0.4 + Math.min(0.22, coverage * 1.2) + castScore * 0.1, 0.35, 0.72);
-  analysisMix *= 1 - castGuard * 0.45;
+  const castGuard = clamp01(greenCast * 5.5 + goldCast * 3.5);
+  let analysisMix = clamp01(0.42 + Math.min(0.24, coverage * 1.2) + castScore * 0.12, 0.38, 0.78);
+  analysisMix *= 1 - castGuard * 0.4;
 
   let balance: [number, number, number] = [
     clamp01(rawBalance[0] / balLuma, 0.85, 1.16),
@@ -631,10 +706,10 @@ export function analyzeFrame(
     balance[2] * (1 - castGuard * 0.55) + 1 * castGuard * 0.55,
   ];
 
-  // Cap auto strength — aggressive neutralize + blue boost was flipping green to magenta
-  const neutralize = Math.round(clamp01(0.42 + castScore * 0.22, 0.4, 0.62) * 100);
-  const denoise = Math.round(clamp01(0.28 + noise * 0.5 + castScore * 0.12, 0.28, 0.72) * 100);
-  const detail = Math.round(clamp01(0.34 + noise * 0.16 + crush * 0.12, 0.32, 0.62) * 100);
+  // Auto strength — gold liquid-metal needs higher neutralize/denoise ceilings
+  const neutralize = Math.round(clamp01(0.48 + castScore * 0.34, 0.48, 0.88) * 100);
+  const denoise = Math.round(clamp01(0.36 + noise * 0.48 + castScore * 0.22, 0.36, 0.88) * 100);
+  const detail = Math.round(clamp01(0.28 + noise * 0.12 + crush * 0.08, 0.26, 0.55) * 100);
 
   return {
     neutralize,

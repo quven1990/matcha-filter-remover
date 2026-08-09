@@ -287,12 +287,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [kind, setKind] = useState<Kind>(null);
   const [fileName, setFileName] = useState("");
   const [sourceExt, setSourceExt] = useState("");
-  const [strength, setStrength] = useState(82);
-  const [liquid, setLiquid] = useState(70);
-  const [grain, setGrain] = useState(27);
-  const [neutralize, setNeutralize] = useState(82);
-  const [denoise, setDenoise] = useState(55);
-  const [detail, setDetail] = useState(48);
+  const [strength, setStrength] = useState(68);
+  const [liquid, setLiquid] = useState(48);
+  const [grain, setGrain] = useState(18);
+  const [neutralize, setNeutralize] = useState(86);
+  const [denoise, setDenoise] = useState(62);
+  const [detail, setDetail] = useState(44);
   const [compare, setCompare] = useState(50);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UploadIssue | null>(null);
@@ -342,6 +342,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     async () => undefined,
   );
   const scheduleShareAfterAdjustRef = useRef<() => void>(() => undefined);
+  const compareIntroPendingRef = useRef(false);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -492,6 +493,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       adjustShareTimerRef.current = null;
     }
     adjustHintShownRef.current = false;
+    compareIntroPendingRef.current = false;
     clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -573,20 +575,43 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [shareModalOpen, dismissShareModal]);
 
-  const scrollToAdjust = useCallback((reason: string) => {
-    const el = adjustBlockRef.current;
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-    trackTool("tool_adjust_reveal", { reason, media_type: kind || undefined });
-  }, [kind, trackTool]);
+  const scrollToAdjust = useCallback(
+    (reason: string) => {
+      const el = adjustBlockRef.current;
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      trackTool("tool_adjust_reveal", { reason, media_type: kind || undefined });
+    },
+    [kind, trackTool],
+  );
 
-  // Mobile: after share dialog closes, bring Adjust into view once so sliders aren't missed.
+  const openMobileAdjust = useCallback(
+    (reason: string) => {
+      scrollToAdjust(reason);
+    },
+    [scrollToAdjust],
+  );
+
+  // Mobile: after upload, bring the Adjust sliders into view under the sticky preview.
   useEffect(() => {
-    if (!ready || shareModalOpen || !mobileSaveUi || adjustHintShownRef.current) return;
+    if (!ready || !mobileSaveUi || adjustHintShownRef.current) return;
     adjustHintShownRef.current = true;
-    const timer = window.setTimeout(() => scrollToAdjust("auto_after_upload"), 380);
+    const timer = window.setTimeout(() => {
+      scrollToAdjust("auto_after_upload");
+    }, 450);
     return () => window.clearTimeout(timer);
-  }, [ready, shareModalOpen, mobileSaveUi, scrollToAdjust]);
+  }, [ready, mobileSaveUi, scrollToAdjust]);
+
+  // Mobile intro: show the full upload first, then ease into a split compare.
+  useEffect(() => {
+    if (!ready || !mobileSaveUi || !compareIntroPendingRef.current) return;
+    const timer = window.setTimeout(() => {
+      if (!compareIntroPendingRef.current) return;
+      compareIntroPendingRef.current = false;
+      setCompare(52);
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [ready, mobileSaveUi]);
 
   useEffect(
     () => () => {
@@ -739,6 +764,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     if (rect.width <= 0) return;
+    compareIntroPendingRef.current = false;
     const pct = ((clientX - rect.left) / rect.width) * 100;
     setCompare(Math.max(0, Math.min(100, pct)));
   };
@@ -948,6 +974,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       adjustShareTimerRef.current = null;
     }
     adjustHintShownRef.current = false;
+    compareIntroPendingRef.current = false;
     stopLoop();
     clearObjectUrl();
     setReady(false);
@@ -1069,7 +1096,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         );
         await runStage("Preparing compare view…", 92, 480);
         setKind("image");
-        setCompare(50);
+        if (mobileSaveUi) {
+          compareIntroPendingRef.current = true;
+          setCompare(100);
+        } else {
+          compareIntroPendingRef.current = false;
+          setCompare(50);
+        }
         setPeekOriginal(false);
       } else if (isVideo) {
         const video = videoRef.current;
@@ -1149,7 +1182,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         );
         await runStage("Preparing compare view…", 92, 480);
         setKind("video");
-        setCompare(50);
+        if (mobileSaveUi) {
+          compareIntroPendingRef.current = true;
+          setCompare(100);
+        } else {
+          compareIntroPendingRef.current = false;
+          setCompare(50);
+        }
         setPeekOriginal(false);
         // Preview always seamless-loops so slider tuning never hits a dead end.
         // Export path turns loop off explicitly.
@@ -1598,7 +1637,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       : "Share / Save to Photos";
 
   const splitPos = peekOriginal ? 100 : Math.max(0, Math.min(100, compare));
-  const beforeLabel = isRemove ? "With filter" : "Original";
+  const beforeLabel = isRemove ? "Your upload" : "Original";
   const afterLabel = isRemove ? "Filter removed" : "Matcha applied";
   const showSplitLabels = ready && !peekOriginal && splitPos > 8 && splitPos < 92;
 
@@ -1615,14 +1654,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         </p>
         {ready && (
           <p className="tool-howto tool-howto-mobile">
-            Scroll down to tweak the sliders. Drag the vertical line to compare, or hold “Show
-            original”.
+            Preview on top. Scroll a little — <strong>Adjust effect</strong> sliders are right under
+            it (Softer / Balanced / Stronger + Color neutralize). Or tap Adjust at the bottom.
           </p>
         )}
       </div>
 
       <div className="tool-layout">
-        <div className="preview-column">
+        <div className={`preview-column ${ready ? "is-ready" : ""}`}>
           {ready && (
             <div className="compare-legend">
               <span className="legend-pill legend-before">{beforeLabel}</span>
@@ -1761,7 +1800,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       onLostPointerCapture={() => setPeekOriginal(false)}
                       onPointerCancel={() => setPeekOriginal(false)}
                     >
-                      Hold · show original
+                      <span className="copy-mobile">Hold upload</span>
+                      <span className="copy-desktop">Hold · show upload</span>
                     </button>
                     <div className="preview-actions-end">
                       <button
@@ -1770,7 +1810,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
-                          scrollToAdjust("preview_chip");
+                          openMobileAdjust("preview_chip");
                         }}
                       >
                         Adjust ↓
@@ -1792,7 +1832,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
-                          download();
+                          void download();
                         }}
                         disabled={busy}
                       >
@@ -1820,9 +1860,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
           {ready && (
             <p className="compare-hint compare-hint-desktop">
-              <strong>How to compare:</strong> left = {isRemove ? "with filter" : "original"}, right ={" "}
+              <strong>How to compare:</strong> left = {isRemove ? "your upload" : "original"}, right ={" "}
               {isRemove ? "filter removed" : "matcha applied"}. Drag the preview split, or press and hold
-              “Hold · show original”.
+              “Hold · show upload”.
             </p>
           )}
         </div>
@@ -1833,13 +1873,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <div className="engage-tip-copy">
                 {isRemove && autoTuned ? (
                   <>
-                    <strong>Auto-tuned.</strong> Scroll to the sliders below to tweak, or use
-                    Stronger remove.
+                    <strong>Auto-tuned.</strong> Try Softer / Balanced / Stronger, or drag the three
+                    sliders below until the green looks right.
+                  </>
+                ) : isRemove ? (
+                  <>
+                    <strong>Next:</strong> try Softer / Balanced / Stronger, or drag the sliders
+                    below.
                   </>
                 ) : (
                   <>
-                    <strong>Next:</strong> use the sliders below to fine-tune
-                    {isRemove ? ", or tap Stronger remove" : ""}.
+                    <strong>Next:</strong> use the sliders below to fine-tune the liquid matcha look.
                   </>
                 )}
               </div>
@@ -1848,7 +1892,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 className="engage-tip-dismiss copy-mobile"
                 onClick={() => {
                   setShowTip(false);
-                  scrollToAdjust("engage_tip");
+                  openMobileAdjust("engage_tip");
                 }}
               >
                 Show sliders
@@ -1889,6 +1933,69 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     Re-analyze
                   </button>
                 </div>
+                <div className="preset-row" role="group" aria-label="Remove strength presets">
+                  <button
+                    type="button"
+                    className="btn-ghost btn-compact"
+                    disabled={!ready || busy}
+                    onClick={() => {
+                      setNeutralize(58);
+                      setDenoise(42);
+                      setDetail(55);
+                      setCompare(50);
+                      setAutoTuned(false);
+                      trackTool("tool_preset_click", {
+                        preset: "softer_remove",
+                        media_type: kind || undefined,
+                      });
+                      scheduleShareAfterAdjust();
+                    }}
+                  >
+                    Softer
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost btn-compact"
+                    disabled={!ready || busy}
+                    onClick={() => {
+                      setNeutralize(78);
+                      setDenoise(58);
+                      setDetail(46);
+                      setCompare(50);
+                      setAutoTuned(false);
+                      trackTool("tool_preset_click", {
+                        preset: "balanced_remove",
+                        media_type: kind || undefined,
+                      });
+                      scheduleShareAfterAdjust();
+                    }}
+                  >
+                    Balanced
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost btn-compact"
+                    disabled={!ready || busy}
+                    onClick={() => {
+                      setNeutralize(96);
+                      setDenoise(82);
+                      setDetail(36);
+                      setCompare(50);
+                      setAutoTuned(false);
+                      trackTool("tool_preset_click", {
+                        preset: "stronger_remove",
+                        media_type: kind || undefined,
+                      });
+                      scheduleShareAfterAdjust();
+                    }}
+                  >
+                    Stronger
+                  </button>
+                </div>
+                <p className="control-hint">
+                  Still green? raise Color neutralize. Too soft/blurry? lower Noise reduction or raise
+                  Detail restore. Drag the preview split to compare.
+                </p>
                 <label className="control">
                   <span>
                     Color neutralize <em>{neutralize}</em>
@@ -1940,25 +2047,6 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     }}
                   />
                 </label>
-                <button
-                  type="button"
-                  className="btn-ghost btn-compact"
-                  disabled={!ready || busy}
-                  onClick={() => {
-                    setNeutralize(92);
-                    setDenoise(62);
-                    setDetail(48);
-                    setCompare(50);
-                    setAutoTuned(false);
-                    trackTool("tool_preset_click", {
-                      preset: "stronger_remove",
-                      media_type: kind || undefined,
-                    });
-                    scheduleShareAfterAdjust();
-                  }}
-                >
-                  Stronger remove preset
-                </button>
               </div>
             ) : (
               <div className="control-stack">
@@ -2059,6 +2147,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     max={100}
                     value={compare}
                     onChange={(e) => {
+                      compareIntroPendingRef.current = false;
                       setCompare(Number(e.target.value));
                       noteCompare("split");
                     }}
@@ -2151,6 +2240,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
       {ready && (
         <div className="mobile-export-dock" role="region" aria-label="Export actions">
+          <button
+            type="button"
+            className="btn-adjust-dock"
+            onClick={() => openMobileAdjust("export_dock")}
+          >
+            Adjust ↓
+          </button>
           <button type="button" className="btn-primary" onClick={() => void download()} disabled={busy}>
             {downloadLabel}
           </button>
