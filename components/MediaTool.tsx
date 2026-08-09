@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import {
+  durationBucket,
+  elapsedBucket,
+  sizeBucket,
+  track,
+  valueBucket,
+} from "@/lib/analytics";
+import {
   MAX_IMAGE_MB,
   MAX_VIDEO_SECONDS,
   MatchaGL,
@@ -22,6 +29,7 @@ type UploadIssue = {
   title: string;
   detail: string;
   tone?: "error" | "info";
+  reason?: string;
 };
 
 function formatMb(bytes: number) {
@@ -44,36 +52,42 @@ function classifyUploadIssue(file: File): UploadIssue | null {
     return {
       title: "HEIC / HEIF is not supported",
       detail: "Export or convert to JPG, PNG, or WebP first, then try again.",
+      reason: "heic",
     };
   }
   if (ext === ".gif" || type === "image/gif") {
     return {
       title: "GIF is not supported",
       detail: "Use a still JPG/PNG/WebP, or an MP4/WebM clip under 30 seconds.",
+      reason: "gif",
     };
   }
   if (ext === ".avi" || ext === ".mkv" || ext === ".flv" || type.includes("avi") || type.includes("matroska")) {
     return {
       title: "This video format is not supported",
       detail: "Re-export as MP4 or WebM (under 30 seconds, max 20MB) for browser processing.",
+      reason: "video_format",
     };
   }
   if (!isImage && !isVideo) {
     return {
       title: "Unsupported file type",
       detail: `“${file.name}” is not a usable photo/video. Accepted: JPG, PNG, WebP, MP4, WebM, MOV.`,
+      reason: "unsupported_type",
     };
   }
   if (file.size <= 0) {
     return {
       title: "Empty file",
       detail: "That file has no data. Pick another photo or video and try again.",
+      reason: "empty",
     };
   }
   if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
     return {
       title: `File is too large (${formatMb(file.size)}MB)`,
       detail: `Keep uploads under ${MAX_IMAGE_MB}MB. Compress or trim the clip, then upload again.`,
+      reason: "too_large",
     };
   }
   return null;
@@ -155,6 +169,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const rafRef = useRef<number | null>(null);
   const glRef = useRef<MatchaGL | null>(null);
   const startTimeRef = useRef(performance.now());
+  const uploadReadyAtRef = useRef<number | null>(null);
+  const compareSeenRef = useRef(new Set<string>());
+  const paramTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -166,6 +183,36 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     isRemove,
     kind: kind as Kind,
   });
+
+  const trackTool = useCallback(
+    (event: string, params?: Record<string, string | number | boolean | undefined | null>) => {
+      track(event, { tool: mode, page_path: `/${mode}`, ...params });
+    },
+    [mode],
+  );
+
+  const noteCompare = useCallback(
+    (action: string) => {
+      if (compareSeenRef.current.has(action)) return;
+      compareSeenRef.current.add(action);
+      trackTool("tool_compare_interact", { action, media_type: kind || undefined });
+    },
+    [kind, trackTool],
+  );
+
+  const noteParam = useCallback(
+    (param: string, value: number) => {
+      if (paramTimerRef.current) clearTimeout(paramTimerRef.current);
+      paramTimerRef.current = setTimeout(() => {
+        trackTool("tool_param_change", {
+          param,
+          value_bucket: valueBucket(value),
+          media_type: kind || undefined,
+        });
+      }, 400);
+    },
+    [kind, trackTool],
+  );
 
   paramsRef.current = {
     strength,
@@ -192,6 +239,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         setError({
           title: "WebGL2 is required",
           detail: "This browser cannot run the matcha effect. Try the latest Chrome, Edge, or Firefox.",
+          reason: "webgl",
         });
         return null;
       }
@@ -214,6 +262,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   };
 
   const reset = useCallback(() => {
+    trackTool("tool_reset", { had_ready: ready, media_type: kind || undefined });
     stopLoop();
     clearObjectUrl();
     setKind(null);
@@ -226,6 +275,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setPreviewPaused(false);
     setVideoTime(0);
     setVideoDuration(0);
+    uploadReadyAtRef.current = null;
+    compareSeenRef.current.clear();
     glRef.current?.resetTemporal();
     const v = videoRef.current;
     if (v) {
@@ -233,12 +284,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       v.removeAttribute("src");
       v.load();
     }
-  }, []);
+  }, [kind, ready, trackTool]);
+
+  useEffect(() => {
+    trackTool("tool_view");
+  }, [trackTool]);
 
   useEffect(
     () => () => {
       stopLoop();
       clearObjectUrl();
+      if (paramTimerRef.current) clearTimeout(paramTimerRef.current);
       glRef.current?.dispose();
       glRef.current = null;
     },
@@ -352,6 +408,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const togglePreviewPlayback = useCallback(() => {
     const video = videoRef.current;
     if (!video || kind !== "video") return;
+    noteCompare("play_pause");
     if (previewPaused) {
       setPreviewPaused(false);
       void video.play().catch(() => undefined);
@@ -361,11 +418,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       setPreviewPaused(true);
       drawFrame();
     }
-  }, [kind, previewPaused, drawFrame, startLoop]);
+  }, [kind, previewPaused, drawFrame, startLoop, noteCompare]);
 
   const scrubVideo = (next: number) => {
     const video = videoRef.current;
     if (!video || kind !== "video") return;
+    noteCompare("scrub");
     const t = Math.max(0, Math.min(video.duration || next, next));
     video.currentTime = t;
     setVideoTime(t);
@@ -402,7 +460,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     return result;
   };
 
-  const fail = (issue: UploadIssue) => {
+  const fail = (issue: UploadIssue, category: "reject" | "fail" = "fail") => {
     clearObjectUrl();
     setKind(null);
     setReady(false);
@@ -412,7 +470,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setPreviewPaused(false);
     setVideoTime(0);
     setVideoDuration(0);
+    uploadReadyAtRef.current = null;
     if (inputRef.current) inputRef.current.value = "";
+    trackTool(category === "reject" ? "tool_upload_reject" : "tool_upload_fail", {
+      reason: issue.reason || "unknown",
+    });
   };
 
   const onFile = async (file: File | null) => {
@@ -424,20 +486,26 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setReady(false);
     setKind(null);
     startTimeRef.current = performance.now();
+    uploadReadyAtRef.current = null;
+    compareSeenRef.current.clear();
     glRef.current?.resetTemporal();
 
     try {
       if (!ensureGL()) {
-        fail({
-          title: "WebGL2 is required",
-          detail: "This browser cannot run the matcha effect. Try the latest Chrome, Edge, or Firefox.",
-        });
+        fail(
+          {
+            title: "WebGL2 is required",
+            detail: "This browser cannot run the matcha effect. Try the latest Chrome, Edge, or Firefox.",
+            reason: "webgl",
+          },
+          "fail",
+        );
         return;
       }
 
       const early = classifyUploadIssue(file);
       if (early) {
-        fail(early);
+        fail(early, "reject");
         return;
       }
 
@@ -464,6 +532,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         fail({
           title: "Preview failed to start",
           detail: "Refresh the page and try uploading again.",
+          reason: "preview",
         });
         return;
       }
@@ -479,6 +548,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   title: "Could not read that image",
                   detail:
                     "The file may be damaged or in an unsupported encoding. Re-save as JPG or PNG and retry.",
+                  reason: "decode",
                 } satisfies UploadIssue,
               }),
             );
@@ -488,6 +558,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           fail({
             title: "Image has no usable dimensions",
             detail: "Pick another photo (JPG, PNG, or WebP) and try again.",
+            reason: "decode",
           });
           return;
         }
@@ -500,6 +571,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           fail({
             title: "Canvas unavailable",
             detail: "Your browser blocked 2D canvas access. Try another browser or disable strict privacy blocking.",
+            reason: "canvas",
           });
           return;
         }
@@ -530,6 +602,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           fail({
             title: "Video player unavailable",
             detail: "Refresh the page and try again.",
+            reason: "preview",
           });
           return;
         }
@@ -541,6 +614,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   issue: {
                     title: `Video is too long (${Math.ceil(video.duration)}s)`,
                     detail: `Trim to ${MAX_VIDEO_SECONDS} seconds or less for smooth on-device preview and export.`,
+                    reason: "video_too_long",
                   } satisfies UploadIssue,
                 }),
               );
@@ -553,6 +627,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     title: "Could not decode video frames",
                     detail:
                       "This codec may not play in your browser. Re-export as H.264 MP4 or VP9 WebM and retry.",
+                    reason: "decode",
                   } satisfies UploadIssue,
                 }),
               );
@@ -570,6 +645,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     title: "Could not read that video",
                     detail:
                       "File may be damaged or use an unsupported codec. Try MP4 (H.264) or WebM under 30s / 20MB.",
+                    reason: "decode",
                   } satisfies UploadIssue,
                 }),
               ),
@@ -612,13 +688,29 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         setVideoDuration(Number.isFinite(video.duration) ? video.duration : 0);
         await video.play().catch(() => undefined);
       } else {
-        fail({
-          title: "Unsupported file type",
-          detail: "Accepted: JPG, PNG, WebP, MP4, WebM, MOV.",
-        });
+        fail(
+          {
+            title: "Unsupported file type",
+            detail: "Accepted: JPG, PNG, WebP, MP4, WebM, MOV.",
+            reason: "unsupported_type",
+          },
+          "reject",
+        );
         return;
       }
       setError(null);
+      const mediaType = isImage ? "image" : "video";
+      const video = videoRef.current;
+      uploadReadyAtRef.current = performance.now();
+      trackTool("tool_upload_success", {
+        media_type: mediaType,
+        file_ext: fileExtension(file.name) || "unknown",
+        size_bucket: sizeBucket(file.size),
+        duration_bucket:
+          mediaType === "video" && video && Number.isFinite(video.duration)
+            ? durationBucket(video.duration)
+            : undefined,
+      });
     } catch (e) {
       const issue =
         e && typeof e === "object" && "issue" in e
@@ -626,8 +718,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           : {
               title: "Upload failed",
               detail: e instanceof Error ? e.message : "Something went wrong while reading that file.",
+              reason: "unknown",
             };
-      fail(issue);
+      fail(issue, issue.reason && ["heic", "gif", "video_format", "unsupported_type", "empty", "too_large"].includes(issue.reason) ? "reject" : "fail");
     } finally {
       setBusy(false);
     }
@@ -637,11 +730,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     ev.preventDefault();
     setDragOver(false);
     const file = ev.dataTransfer.files?.[0];
+    trackTool("tool_upload_drop");
     if (!file) {
       setError({
         title: "No file detected",
         detail: "Drop a single JPG, PNG, WebP, MP4, WebM, or MOV file onto this area.",
+        reason: "empty",
       });
+      trackTool("tool_upload_reject", { reason: "empty" });
       return;
     }
     void onFile(file);
@@ -651,16 +747,31 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     const glCanvas = glCanvasRef.current;
     if (!glCanvas || !ready) return;
     const stem = baseFileName(fileName);
+    trackTool("tool_download_click", { media_type: kind || undefined });
+    const elapsed =
+      uploadReadyAtRef.current != null
+        ? elapsedBucket(performance.now() - uploadReadyAtRef.current)
+        : undefined;
 
     if (kind === "image") {
-      const fmt = pickImageExport(sourceExt || "png");
-      const a = document.createElement("a");
-      a.href =
-        fmt.quality != null
-          ? glCanvas.toDataURL(fmt.mime, fmt.quality)
-          : glCanvas.toDataURL(fmt.mime);
-      a.download = `${mode}-matcha-${stem}.${fmt.ext}`;
-      a.click();
+      try {
+        const fmt = pickImageExport(sourceExt || "png");
+        const a = document.createElement("a");
+        a.href =
+          fmt.quality != null
+            ? glCanvas.toDataURL(fmt.mime, fmt.quality)
+            : glCanvas.toDataURL(fmt.mime);
+        a.download = `${mode}-matcha-${stem}.${fmt.ext}`;
+        a.click();
+        trackTool("tool_download_success", {
+          media_type: "image",
+          export_ext: fmt.ext,
+          format_preserved: fmt.ext === (sourceExt === "jpeg" ? "jpg" : sourceExt),
+          elapsed_ms_bucket: elapsed,
+        });
+      } catch {
+        trackTool("tool_download_fail", { media_type: "image", reason: "unknown" });
+      }
       return;
     }
 
@@ -680,7 +791,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         setError({
           title: "Video export not supported here",
           detail: "This browser cannot record canvas video. Try Chrome/Edge, or download a photo as JPG/PNG instead.",
+          reason: "no_recorder",
         });
+        trackTool("tool_download_fail", { media_type: "video", reason: "no_recorder" });
         return;
       }
 
@@ -740,6 +853,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       a.href = URL.createObjectURL(blob);
       a.download = `${mode}-matcha-${stem}.${picked.ext}`;
       a.click();
+      trackTool("tool_download_success", {
+        media_type: "video",
+        export_ext: picked.ext,
+        format_preserved: picked.ext === sourceExt || (sourceExt === "mov" && picked.ext === "mp4"),
+        elapsed_ms_bucket: elapsed,
+      });
 
       // Chrome often cannot encode MP4; if we fell back, mention it once softly via fine banner only when mismatch
       if (
@@ -762,7 +881,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       setError({
         title: "Video export failed",
         detail: "Try a shorter clip (under 30s), or download a still photo in its original format.",
+        reason: "record_fail",
       });
+      trackTool("tool_download_fail", { media_type: "video", reason: "record_fail" });
     } finally {
       setBusy(false);
     }
@@ -827,7 +948,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <button
                 type="button"
                 className={`dropzone ${error ? "has-error" : ""} ${dragOver ? "is-dragover" : ""}`}
-                onClick={() => inputRef.current?.click()}
+                onClick={() => {
+                  trackTool("tool_upload_click", { entry: "dropzone" });
+                  inputRef.current?.click();
+                }}
                 disabled={busy}
               >
                 <span className="dropzone-kicker">{busy ? "Working" : "Step 1"}</span>
@@ -896,7 +1020,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     <button
                       type="button"
                       className={`preview-chip ${peekOriginal ? "is-active" : ""}`}
-                      onPointerDown={() => setPeekOriginal(true)}
+                      onPointerDown={() => {
+                        setPeekOriginal(true);
+                        noteCompare("peek_original");
+                      }}
                       onPointerUp={() => setPeekOriginal(false)}
                       onPointerLeave={() => setPeekOriginal(false)}
                       onPointerCancel={() => setPeekOriginal(false)}
@@ -959,7 +1086,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     min={0}
                     max={100}
                     value={neutralize}
-                    onChange={(e) => setNeutralize(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setNeutralize(v);
+                      noteParam("neutralize", v);
+                    }}
                   />
                 </label>
                 <label className="control">
@@ -971,7 +1102,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     min={0}
                     max={100}
                     value={denoise}
-                    onChange={(e) => setDenoise(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setDenoise(v);
+                      noteParam("denoise", v);
+                    }}
                   />
                 </label>
                 <label className="control">
@@ -983,7 +1118,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     min={0}
                     max={100}
                     value={detail}
-                    onChange={(e) => setDetail(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setDetail(v);
+                      noteParam("detail", v);
+                    }}
                   />
                 </label>
                 <button
@@ -995,6 +1134,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     setDenoise(62);
                     setDetail(48);
                     setCompare(50);
+                    trackTool("tool_preset_click", {
+                      preset: "stronger_remove",
+                      media_type: kind || undefined,
+                    });
                   }}
                 >
                   Stronger remove preset
@@ -1011,7 +1154,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     min={0}
                     max={100}
                     value={strength}
-                    onChange={(e) => setStrength(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setStrength(v);
+                      noteParam("strength", v);
+                    }}
                   />
                 </label>
                 <label className="control">
@@ -1023,7 +1170,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     min={0}
                     max={100}
                     value={liquid}
-                    onChange={(e) => setLiquid(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setLiquid(v);
+                      noteParam("liquid", v);
+                    }}
                   />
                 </label>
                 <label className="control">
@@ -1035,7 +1186,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     min={0}
                     max={100}
                     value={grain}
-                    onChange={(e) => setGrain(Number(e.target.value))}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setGrain(v);
+                      noteParam("grain", v);
+                    }}
                   />
                 </label>
               </div>
@@ -1085,7 +1240,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     min={0}
                     max={100}
                     value={compare}
-                    onChange={(e) => setCompare(Number(e.target.value))}
+                    onChange={(e) => {
+                      setCompare(Number(e.target.value));
+                      noteCompare("split");
+                    }}
                     disabled={peekOriginal}
                   />
                   <span className="control-caption">
@@ -1096,7 +1254,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 <button
                   type="button"
                   className={`btn-secondary btn-compact ${peekOriginal ? "is-pressed" : ""}`}
-                  onPointerDown={() => setPeekOriginal(true)}
+                  onPointerDown={() => {
+                    setPeekOriginal(true);
+                    noteCompare("peek_original");
+                  }}
                   onPointerUp={() => setPeekOriginal(false)}
                   onPointerLeave={() => setPeekOriginal(false)}
                   onPointerCancel={() => setPeekOriginal(false)}
@@ -1116,7 +1277,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <button
                 type="button"
                 className="btn-primary"
-                onClick={() => inputRef.current?.click()}
+                onClick={() => {
+                  trackTool("tool_upload_click", { entry: ready ? "replace" : "primary_cta" });
+                  inputRef.current?.click();
+                }}
                 disabled={busy}
               >
                 {ready ? "Replace file" : isRemove ? "Upload & Remove" : "Upload & Apply"}
