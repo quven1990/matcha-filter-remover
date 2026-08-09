@@ -888,7 +888,8 @@ a {
   opacity: 0.78;
 }
 
-.save-sheet-image {
+.save-sheet-image,
+.save-sheet-video {
   width: 100%;
   max-height: min(52vh, 28rem);
   object-fit: contain;
@@ -896,6 +897,10 @@ a {
   background: #0f1914;
   -webkit-touch-callout: default;
   user-select: none;
+}
+
+.save-sheet-video {
+  display: block;
 }
 
 .save-sheet-actions {

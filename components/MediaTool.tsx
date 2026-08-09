@@ -142,16 +142,30 @@ function pickVideoExport(preferredExt: string): { mime: string; ext: string } | 
 }
 
 type SaveSheetState = {
+  kind: "image" | "video";
   url: string;
   fileName: string;
   mime: string;
   blob: Blob;
   canShare: boolean;
+  ext: string;
 };
 
-function prefersMobileImageSave() {
+function prefersMobileSave() {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches;
+}
+
+function canShareFile(file: File) {
+  try {
+    return (
+      typeof navigator !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({ files: [file] })
+    );
+  } catch {
+    return false;
+  }
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality?: number) {
@@ -893,7 +907,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       try {
         const fmt = pickImageExport(sourceExt || "png");
         const exportName = `${mode}-matcha-${stem}.${fmt.ext}`;
-        const useSaveSheet = prefersMobileImageSave();
+        const useSaveSheet = prefersMobileSave();
 
         await runStage(useSaveSheet ? "Preparing image…" : "Rendering export…", 30, useSaveSheet ? 280 : 700);
         const blob = await canvasToBlob(glCanvas, fmt.mime, fmt.quality);
@@ -902,12 +916,16 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         if (useSaveSheet) {
           const url = URL.createObjectURL(blob);
           const file = new File([blob], exportName, { type: fmt.mime });
-          const canShare =
-            typeof navigator !== "undefined" &&
-            typeof navigator.canShare === "function" &&
-            navigator.canShare({ files: [file] });
           closeSaveSheet();
-          setSaveSheet({ url, fileName: exportName, mime: fmt.mime, blob, canShare });
+          setSaveSheet({
+            kind: "image",
+            url,
+            fileName: exportName,
+            mime: fmt.mime,
+            blob,
+            canShare: canShareFile(file),
+            ext: fmt.ext,
+          });
           trackTool("tool_download_success", {
             media_type: "image",
             export_ext: fmt.ext,
@@ -1015,30 +1033,55 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       recorder.stop();
       video.pause();
       const blob = await done;
-      const a = document.createElement("a");
-      await runStage("Encoding file…", 78, 520);
-      await runStage("Starting download…", 95, 380);
-      a.href = URL.createObjectURL(blob);
-      a.download = `${mode}-matcha-${stem}.${picked.ext}`;
-      a.click();
-      trackTool("tool_download_success", {
-        media_type: "video",
-        export_ext: picked.ext,
-        format_preserved: picked.ext === sourceExt || (sourceExt === "mov" && picked.ext === "mp4"),
-        elapsed_ms_bucket: elapsed,
-      });
+      const exportMime = picked.mime.split(";")[0] || "video/webm";
+      const exportName = `${mode}-matcha-${stem}.${picked.ext}`;
+      const useSaveSheet = prefersMobileSave();
+      await runStage("Encoding file…", 78, useSaveSheet ? 320 : 520);
 
-      // Chrome often cannot encode MP4; if we fell back, mention it once softly via fine banner only when mismatch
-      if (
-        (sourceExt === "mp4" || sourceExt === "mov") &&
-        picked.ext === "webm"
-      ) {
-        setError({
-          title: "Saved as WebM (browser limit)",
-          detail:
-            "This browser cannot record MP4 from canvas, so the download is WebM. Convert to MP4 in any editor if needed.",
-          tone: "info",
+      if (useSaveSheet) {
+        await runStage("Opening save sheet…", 92, 220);
+        const url = URL.createObjectURL(blob);
+        const file = new File([blob], exportName, { type: exportMime });
+        closeSaveSheet();
+        setSaveSheet({
+          kind: "video",
+          url,
+          fileName: exportName,
+          mime: exportMime,
+          blob,
+          canShare: canShareFile(file),
+          ext: picked.ext,
         });
+        trackTool("tool_download_success", {
+          media_type: "video",
+          export_ext: picked.ext,
+          format_preserved: picked.ext === sourceExt || (sourceExt === "mov" && picked.ext === "mp4"),
+          elapsed_ms_bucket: elapsed,
+          save_method: "mobile_sheet",
+        });
+      } else {
+        await runStage("Starting download…", 95, 380);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = exportName;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2_000);
+        trackTool("tool_download_success", {
+          media_type: "video",
+          export_ext: picked.ext,
+          format_preserved: picked.ext === sourceExt || (sourceExt === "mov" && picked.ext === "mp4"),
+          elapsed_ms_bucket: elapsed,
+          save_method: "file_download",
+        });
+
+        if ((sourceExt === "mp4" || sourceExt === "mov") && picked.ext === "webm") {
+          setError({
+            title: "Saved as WebM (browser limit)",
+            detail:
+              "This browser cannot record MP4 from canvas, so the download is WebM. Convert to MP4 in any editor if needed.",
+            tone: "info",
+          });
+        }
       }
 
       video.loop = true;
@@ -1065,7 +1108,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       return mobileSaveUi ? `Save ${fmt.ext.toUpperCase()}` : `Download ${fmt.ext.toUpperCase()}`;
     }
     const prefer = sourceExt === "mov" ? "MP4" : (sourceExt || "video").toUpperCase();
-    return `Download ${prefer}`;
+    return mobileSaveUi ? `Save ${prefer}` : `Download ${prefer}`;
   })();
 
   const shareSaveSheet = async () => {
@@ -1076,13 +1119,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         files: [file],
         title: saveSheet.fileName,
       });
-      trackTool("tool_save_share", { media_type: "image", result: "shared" });
+      trackTool("tool_save_share", { media_type: saveSheet.kind, result: "shared" });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        trackTool("tool_save_share", { media_type: "image", result: "cancelled" });
+        trackTool("tool_save_share", { media_type: saveSheet.kind, result: "cancelled" });
         return;
       }
-      trackTool("tool_save_share", { media_type: "image", result: "failed" });
+      trackTool("tool_save_share", { media_type: saveSheet.kind, result: "failed" });
     }
   };
 
@@ -1092,8 +1135,32 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     a.href = saveSheet.url;
     a.download = saveSheet.fileName;
     a.click();
-    trackTool("tool_save_file_fallback", { media_type: "image" });
+    trackTool("tool_save_file_fallback", { media_type: saveSheet.kind });
   };
+
+  const saveSheetTitle = saveSheet?.kind === "video" ? "Save your video" : "Save to Photos";
+  const saveSheetHint = (() => {
+    if (!saveSheet) return "";
+    if (saveSheet.kind === "video") {
+      if (saveSheet.ext === "webm") {
+        return saveSheet.canShare
+          ? "Tap Share, then Save to Files. WebM may not open in iPhone Photos — convert to MP4 if needed."
+          : "Download the file, or open it in a player that supports WebM. iPhone Photos usually needs MP4.";
+      }
+      return saveSheet.canShare
+        ? "Tap Share, then Save Video / Save to Files. Preview plays below."
+        : "Download the file, then open it from Files to save to Photos if your phone allows.";
+    }
+    return saveSheet.canShare
+      ? "Tap Share, then choose Save Image / Save to Photos. Or long-press the picture below."
+      : "Long-press the picture → Save Image / Add to Photos.";
+  })();
+  const saveShareLabel =
+    saveSheet?.kind === "video"
+      ? saveSheet.ext === "webm"
+        ? "Share / Save to Files"
+        : "Share / Save Video"
+      : "Share / Save to Photos";
 
   const splitPos = peekOriginal ? 100 : Math.max(0, Math.min(100, compare));
   const beforeLabel = isRemove ? "With filter" : "Original";
@@ -1280,7 +1347,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                         }}
                         disabled={busy}
                       >
-                        {mobileSaveUi && kind === "image" ? "Save" : "Download"}
+                        {mobileSaveUi ? "Save" : "Download"}
                       </button>
                     </div>
                   </div>
@@ -1613,27 +1680,33 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           <button type="button" className="save-sheet-backdrop" aria-label="Close" onClick={closeSaveSheet} />
           <div className="save-sheet-panel">
             <div className="save-sheet-head">
-              <h2 id="save-sheet-title">Save to Photos</h2>
+              <h2 id="save-sheet-title">{saveSheetTitle}</h2>
               <button type="button" className="save-sheet-close" onClick={closeSaveSheet}>
                 Done
               </button>
             </div>
-            <p className="save-sheet-hint">
-              {saveSheet.canShare
-                ? "Tap Share, then choose Save Image / Save to Photos. Or long-press the picture below."
-                : "Long-press the picture → Save Image / Add to Photos."}
-            </p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className="save-sheet-image"
-              src={saveSheet.url}
-              alt="Processed result — long-press to save"
-              draggable={false}
-            />
+            <p className="save-sheet-hint">{saveSheetHint}</p>
+            {saveSheet.kind === "video" ? (
+              <video
+                className="save-sheet-video"
+                src={saveSheet.url}
+                controls
+                playsInline
+                preload="metadata"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="save-sheet-image"
+                src={saveSheet.url}
+                alt="Processed result — long-press to save"
+                draggable={false}
+              />
+            )}
             <div className="save-sheet-actions">
               {saveSheet.canShare && (
                 <button type="button" className="btn-primary" onClick={() => void shareSaveSheet()}>
-                  Share / Save to Photos
+                  {saveShareLabel}
                 </button>
               )}
               <button type="button" className="btn-secondary" onClick={downloadSaveSheetFile}>
