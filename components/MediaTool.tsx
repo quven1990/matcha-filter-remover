@@ -1008,7 +1008,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const showSplitLabels = ready && !peekOriginal && splitPos > 8 && splitPos < 92;
 
   return (
-    <section className="tool-shell">
+    <section className={`tool-shell ${ready ? "has-export-dock" : ""}`}>
       <div className="tool-intro">
         <p className="eyebrow">{isRemove ? "Remove workspace" : "Apply workspace"} · On-device · No upload</p>
         <h1 className="display mt-2">{title}</h1>
@@ -1165,17 +1165,31 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     >
                       Hold · show original
                     </button>
-                    {kind === "video" && (
+                    <div className="preview-actions-end">
+                      {kind === "video" && (
+                        <button
+                          type="button"
+                          className="preview-chip"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={togglePreviewPlayback}
+                          aria-label={previewPaused ? "Play preview" : "Pause preview"}
+                        >
+                          {previewPaused ? "Play" : "Pause"}
+                        </button>
+                      )}
                       <button
                         type="button"
-                        className="preview-chip"
+                        className="preview-chip preview-chip-download"
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={togglePreviewPlayback}
-                        aria-label={previewPaused ? "Play preview" : "Pause preview"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          download();
+                        }}
+                        disabled={busy}
                       >
-                        {previewPaused ? "Play" : "Pause"}
+                        Download
                       </button>
-                    )}
+                    </div>
                   </div>
                 </>
               )}
@@ -1195,11 +1209,21 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             />
           </div>
 
+          {ready && (
+            <p className="compare-hint compare-hint-desktop">
+              <strong>How to compare:</strong> left = {isRemove ? "with filter" : "original"}, right ={" "}
+              {isRemove ? "filter removed" : "matcha applied"}. Drag the preview split, or press and hold
+              “Hold · show original”.
+            </p>
+          )}
+        </div>
+
+        <aside className="controls-panel">
           {ready && showTip && (
             <div className="engage-tip" role="status">
               <div className="engage-tip-copy">
-                <strong>Try this next:</strong> drag the split to compare
-                {isRemove ? ", or tap Stronger remove preset" : ""}. Hold “Show original” for a quick peek.
+                <strong>Next:</strong> tweak the sliders below
+                {isRemove ? ", or tap Stronger remove" : ""}. Drag the preview line to compare.
               </div>
               <button type="button" className="engage-tip-dismiss" onClick={() => setShowTip(false)}>
                 Got it
@@ -1207,24 +1231,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             </div>
           )}
 
-          {ready && (
-            <p className="compare-hint">
-              <strong>How to compare:</strong>{" "}
-              <span className="copy-mobile">
-                drag the line on the preview · left = {isRemove ? "with filter" : "original"}, right ={" "}
-                {isRemove ? "removed" : "applied"}
-              </span>
-              <span className="copy-desktop">
-                left = {isRemove ? "with filter" : "original"}, right ={" "}
-                {isRemove ? "filter removed" : "matcha applied"}. Drag the preview split, or press and hold
-                “Hold · show original”.
-              </span>
-            </p>
-          )}
-        </div>
-
-        <aside className="controls-panel">
-          <div className="control-block">
+          <div className="control-block adjust-block">
             <div className="control-block-head">
               <h2>1. Adjust effect</h2>
               <p>{isRemove ? "Reduce green cast and grain." : "Tune liquid matcha look."}</p>
@@ -1353,7 +1360,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           </div>
 
           {ready && (
-            <div className="control-block">
+            <div className="control-block compare-block">
               <div className="control-block-head">
                 <h2>2. Compare</h2>
                 <p>Confirm before vs after on the same frame.</p>
@@ -1424,31 +1431,43 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             </div>
           )}
 
-          <div className={`control-block export-block ${ready ? "is-ready" : ""}`}>
+          <div className={`control-block export-block export-block-panel ${ready ? "is-ready" : ""}`}>
             <div className="control-block-head">
               <h2>{ready ? "3. Export" : "2. Export"}</h2>
               <p>{ready ? "Download keeps your source format when possible." : "Upload first, then export."}</p>
             </div>
             <div className="action-row">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  trackTool("tool_upload_click", { entry: ready ? "replace" : "primary_cta" });
-                  inputRef.current?.click();
-                }}
-                disabled={busy}
-              >
-                {ready ? "Replace file" : isRemove ? "Upload & Remove" : "Upload & Apply"}
-              </button>
-              {ready && (
-                <button type="button" className="btn-secondary" onClick={download} disabled={busy}>
-                  {downloadLabel}
-                </button>
-              )}
-              {ready && (
-                <button type="button" className="btn-ghost" onClick={reset}>
-                  Reset
+              {ready ? (
+                <>
+                  <button type="button" className="btn-primary" onClick={download} disabled={busy}>
+                    {downloadLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      trackTool("tool_upload_click", { entry: "replace" });
+                      inputRef.current?.click();
+                    }}
+                    disabled={busy}
+                  >
+                    Replace file
+                  </button>
+                  <button type="button" className="btn-ghost" onClick={reset}>
+                    Reset
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => {
+                    trackTool("tool_upload_click", { entry: "primary_cta" });
+                    inputRef.current?.click();
+                  }}
+                  disabled={busy}
+                >
+                  {isRemove ? "Upload & Remove" : "Upload & Apply"}
                 </button>
               )}
             </div>
@@ -1468,6 +1487,28 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           </p>
         </aside>
       </div>
+
+      {ready && (
+        <div className="mobile-export-dock" role="region" aria-label="Export actions">
+          <button type="button" className="btn-primary" onClick={download} disabled={busy}>
+            {downloadLabel}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              trackTool("tool_upload_click", { entry: "replace_dock" });
+              inputRef.current?.click();
+            }}
+            disabled={busy}
+          >
+            Replace
+          </button>
+          <button type="button" className="btn-ghost" onClick={reset}>
+            Reset
+          </button>
+        </div>
+      )}
     </section>
   );
 }
