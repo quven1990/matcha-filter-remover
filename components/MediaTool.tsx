@@ -122,6 +122,12 @@ function pickImageExport(ext: string): { mime: string; ext: string; quality?: nu
   return { mime: "image/png", ext: "png" };
 }
 
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function pickVideoExport(preferredExt: string): { mime: string; ext: string } | null {
   const wantMp4 = preferredExt === "mp4" || preferredExt === "mov";
   const mp4 = ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=h264", "video/mp4"];
@@ -175,6 +181,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const paramTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draggingCompareRef = useRef(false);
   const [draggingCompare, setDraggingCompare] = useState(false);
+  const [statusText, setStatusText] = useState("");
+  const [statusProgress, setStatusProgress] = useState(0);
+  const [showTip, setShowTip] = useState(false);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -193,6 +202,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     },
     [mode],
   );
+
+  const runStage = useCallback(async (text: string, progress: number, ms: number) => {
+    setStatusText(text);
+    setStatusProgress(progress);
+    await sleep(ms);
+  }, []);
+
+  const clearStatus = useCallback(() => {
+    setStatusText("");
+    setStatusProgress(0);
+  }, []);
 
   const noteCompare = useCallback(
     (action: string) => {
@@ -278,6 +298,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setPreviewPaused(false);
     setVideoTime(0);
     setVideoDuration(0);
+    setShowTip(false);
+    clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
     glRef.current?.resetTemporal();
@@ -287,7 +309,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       v.removeAttribute("src");
       v.load();
     }
-  }, [kind, ready, trackTool]);
+  }, [clearStatus, kind, ready, trackTool]);
 
   useEffect(() => {
     trackTool("tool_view");
@@ -449,7 +471,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   };
 
   const onComparePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!ready || peekOriginal) return;
+    if (!ready || peekOriginal || busy) return;
     const target = e.target as HTMLElement;
     if (target.closest("button, .preview-actions")) return;
     draggingCompareRef.current = true;
@@ -509,6 +531,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setPreviewPaused(false);
     setVideoTime(0);
     setVideoDuration(0);
+    setShowTip(false);
+    clearStatus();
     uploadReadyAtRef.current = null;
     if (inputRef.current) inputRef.current.value = "";
     trackTool(category === "reject" ? "tool_upload_reject" : "tool_upload_fail", {
@@ -520,6 +544,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     if (!file) return;
     setError(null);
     setBusy(true);
+    setShowTip(false);
     stopLoop();
     clearObjectUrl();
     setReady(false);
@@ -561,6 +586,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         name.endsWith(".jpeg") ||
         name.endsWith(".png") ||
         name.endsWith(".webp");
+
+      await runStage("Reading file…", 16, 520);
 
       const url = URL.createObjectURL(file);
       objectUrlRef.current = url;
@@ -615,6 +642,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           return;
         }
         ctx.drawImage(img, 0, 0, source.width, source.height);
+        await runStage(
+          isRemove ? "Analyzing green cast…" : "Building matcha look…",
+          42,
+          620,
+        );
         if (isRemove) {
           const analyzed = runAnalyze(source);
           if (analyzed) {
@@ -632,6 +664,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             };
           }
         }
+        await runStage(
+          isRemove ? "Neutralizing & cleaning…" : "Adding liquid grain…",
+          70,
+          580,
+        );
+        await runStage("Preparing compare view…", 92, 480);
         setKind("image");
         setCompare(50);
         setPeekOriginal(false);
@@ -696,6 +734,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         source.width = video.videoWidth || 1280;
         source.height = video.videoHeight || 720;
         const ctx = source.getContext("2d", { willReadFrequently: true });
+        await runStage(
+          isRemove ? "Analyzing green cast…" : "Building matcha look…",
+          42,
+          620,
+        );
         if (ctx) {
           ctx.drawImage(video, 0, 0, source.width, source.height);
           if (isRemove) {
@@ -716,6 +759,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             }
           }
         }
+        await runStage(
+          isRemove ? "Neutralizing & cleaning…" : "Adding liquid grain…",
+          70,
+          580,
+        );
+        await runStage("Preparing compare view…", 92, 480);
         setKind("video");
         setCompare(50);
         setPeekOriginal(false);
@@ -750,6 +799,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             ? durationBucket(video.duration)
             : undefined,
       });
+      setShowTip(true);
     } catch (e) {
       const issue =
         e && typeof e === "object" && "issue" in e
@@ -761,6 +811,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             };
       fail(issue, issue.reason && ["heic", "gif", "video_format", "unsupported_type", "empty", "too_large"].includes(issue.reason) ? "reject" : "fail");
     } finally {
+      clearStatus();
       setBusy(false);
     }
   };
@@ -784,7 +835,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
   const download = async () => {
     const glCanvas = glCanvasRef.current;
-    if (!glCanvas || !ready) return;
+    if (!glCanvas || !ready || busy) return;
     const stem = baseFileName(fileName);
     trackTool("tool_download_click", { media_type: kind || undefined });
     const elapsed =
@@ -793,7 +844,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         : undefined;
 
     if (kind === "image") {
+      setBusy(true);
+      setError(null);
       try {
+        await runStage("Rendering export…", 30, 700);
+        await runStage("Packaging file…", 68, 650);
+        await runStage("Starting download…", 94, 400);
         const fmt = pickImageExport(sourceExt || "png");
         const a = document.createElement("a");
         a.href =
@@ -810,6 +866,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         });
       } catch {
         trackTool("tool_download_fail", { media_type: "image", reason: "unknown" });
+      } finally {
+        clearStatus();
+        setBusy(false);
       }
       return;
     }
@@ -820,6 +879,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setBusy(true);
     setError(null);
     try {
+      await runStage("Preparing video export…", 18, 550);
       const gl = ensureGL();
       if (!gl) throw new Error("WebGL2 required");
       stopLoop();
@@ -835,6 +895,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         trackTool("tool_download_fail", { media_type: "video", reason: "no_recorder" });
         return;
       }
+      await runStage("Rendering frames…", 40, 500);
 
       const stream = glCanvas.captureStream(30);
       const recorder = new MediaRecorder(stream, { mimeType: picked.mime });
@@ -889,6 +950,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       video.pause();
       const blob = await done;
       const a = document.createElement("a");
+      await runStage("Encoding file…", 78, 520);
+      await runStage("Starting download…", 95, 380);
       a.href = URL.createObjectURL(blob);
       a.download = `${mode}-matcha-${stem}.${picked.ext}`;
       a.click();
@@ -924,6 +987,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       });
       trackTool("tool_download_fail", { media_type: "video", reason: "record_fail" });
     } finally {
+      clearStatus();
       setBusy(false);
     }
   };
@@ -970,7 +1034,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           )}
 
           <div
-            className={`preview-frame ${dragOver ? "is-dragover" : ""} ${ready ? "has-media" : ""}`}
+            className={`preview-frame ${dragOver ? "is-dragover" : ""} ${ready ? "has-media" : ""} ${busy ? "is-busy" : ""}`}
             onDragEnter={(e) => {
               e.preventDefault();
               setDragOver(true);
@@ -986,7 +1050,18 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             }}
             onDrop={onDrop}
           >
-            {!ready && (
+            {busy && (
+              <div className="process-overlay" role="status" aria-live="polite">
+                <div className="process-spinner" aria-hidden />
+                <p className="process-title">{statusText || "Working…"}</p>
+                <div className="process-track" aria-hidden>
+                  <div className="process-fill" style={{ width: `${Math.max(8, statusProgress)}%` }} />
+                </div>
+                <p className="process-sub">On-device processing · usually a couple of seconds</p>
+              </div>
+            )}
+
+            {!ready && !busy && (
               <button
                 type="button"
                 className={`dropzone ${error ? "has-error" : ""} ${dragOver ? "is-dragover" : ""}`}
@@ -996,20 +1071,18 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 }}
                 disabled={busy}
               >
-                <span className="dropzone-kicker">{busy ? "Working" : "Step 1"}</span>
+                <span className="dropzone-kicker">Step 1</span>
                 <span className="dropzone-title">
-                  {busy
-                    ? "Checking media…"
-                    : dragOver
-                      ? "Drop to upload"
-                      : error
-                        ? "Try another file"
-                        : (
-                          <>
-                            <span className="copy-mobile">Tap to choose a photo or video</span>
-                            <span className="copy-desktop">Drop a photo or short video</span>
-                          </>
-                        )}
+                  {dragOver
+                    ? "Drop to upload"
+                    : error
+                      ? "Try another file"
+                      : (
+                        <>
+                          <span className="copy-mobile">Tap to choose a photo or video</span>
+                          <span className="copy-desktop">Drop a photo or short video</span>
+                        </>
+                      )}
                 </span>
                 <span className="dropzone-sub">
                   <span className="copy-mobile">
@@ -1121,6 +1194,18 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               }}
             />
           </div>
+
+          {ready && showTip && (
+            <div className="engage-tip" role="status">
+              <div className="engage-tip-copy">
+                <strong>Try this next:</strong> drag the split to compare
+                {isRemove ? ", or tap Stronger remove preset" : ""}. Hold “Show original” for a quick peek.
+              </div>
+              <button type="button" className="engage-tip-dismiss" onClick={() => setShowTip(false)}>
+                Got it
+              </button>
+            </div>
+          )}
 
           {ready && (
             <p className="compare-hint">
