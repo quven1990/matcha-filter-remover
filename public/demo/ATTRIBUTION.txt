@@ -1,0 +1,5 @@
+Demo portrait for homepage before/after.
+
+- Base photo: Unsplash (photo-1438761681033-6461ffad8d80), Unsplash License.
+- with-filter.webp: soft pistachio/matcha cast grade.
+- filter-removed.webp: gentle Remove pipeline pass (best-effort).

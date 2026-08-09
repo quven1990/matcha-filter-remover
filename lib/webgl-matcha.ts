@@ -218,34 +218,35 @@ vec3 neutralizeCast(vec3 color, float neutralize){
   float n = pow(clamp(neutralize, 0.0, 1.0), 0.78);
   float L0 = luma(color);
 
-  // Primary green excess vs red+blue
+  // Primary green excess vs red+blue — pull G down; only gently refill R/B
+  // (heavy R/B refill was causing magenta overshoot on strong matcha veils)
   float greenExcess = max(color.g - (color.r + color.b) * 0.5, 0.0);
-  color.g -= greenExcess * n * 1.35;
-  color.r += greenExcess * n * 0.48;
-  color.b += greenExcess * n * 0.45;
+  color.g -= greenExcess * n * 1.15;
+  color.r += greenExcess * n * 0.1;
+  color.b += greenExcess * n * 0.08;
 
   // Olive / matcha yellow-green (R and G both high vs B)
   float olive = max(color.g - color.b, 0.0) * 0.7 + max(color.r - color.b, 0.0) * 0.28;
-  color.g -= olive * n * 0.72;
-  color.r -= olive * n * 0.16;
-  color.b += olive * n * 0.58;
+  color.g -= olive * n * 0.58;
+  color.r -= olive * n * 0.12;
+  color.b += olive * n * 0.18;
 
   // Global green channel pull toward mean of R/B (veil remover)
   float rb = (color.r + color.b) * 0.5;
   float veil = max(0.0, color.g - rb);
-  color.g = mix(color.g, rb, veil * n * 0.88);
+  color.g = mix(color.g, rb, veil * n * 0.72);
 
   // Also pull when green merely dominates (dark teal / murky green footage)
   float gDom = max(0.0, color.g - max(color.r, color.b));
-  color.g -= gDom * n * 0.85;
-  color.r += gDom * n * 0.28;
-  color.b += gDom * n * 0.32;
+  color.g -= gDom * n * 0.7;
+  color.r += gDom * n * 0.08;
+  color.b += gDom * n * 0.09;
 
   // Shadow green cleanup (TikTok heavy veils crush into shadows)
   float shadow = 1.0 - smoothstep(0.05, 0.5, L0);
   float highlight = smoothstep(0.5, 0.92, L0);
-  color.g -= max(0.0, color.g - color.r) * shadow * 0.62 * n;
-  color.g -= max(0.0, color.g - color.b) * highlight * 0.3 * n;
+  color.g -= max(0.0, color.g - color.r) * shadow * 0.48 * n;
+  color.g -= max(0.0, color.g - color.b) * highlight * 0.22 * n;
 
   // Yellow cast leftover
   float yellowExcess = max((color.r + color.g) * 0.5 - color.b, 0.0);
@@ -592,28 +593,39 @@ export function analyzeFrame(
   const bMean = weightSum ? bSum / weightSum : 1;
   const mean = (rMean + gMean + bMean) / 3;
   const rawBalance: [number, number, number] = [
-    clamp01(mean / Math.max(0.03, rMean), 0.72, 1.35),
-    clamp01(mean / Math.max(0.03, gMean), 0.65, 1.2),
-    clamp01(mean / Math.max(0.03, bMean), 0.72, 1.4),
+    clamp01(mean / Math.max(0.03, rMean), 0.82, 1.18),
+    clamp01(mean / Math.max(0.03, gMean), 0.78, 1.1),
+    clamp01(mean / Math.max(0.03, bMean), 0.82, 1.16),
   ];
   const balLuma = rawBalance[0] * 0.2126 + rawBalance[1] * 0.7152 + rawBalance[2] * 0.0722;
-  const balance: [number, number, number] = [
-    clamp01(rawBalance[0] / balLuma, 0.75, 1.35),
-    clamp01(rawBalance[1] / balLuma, 0.7, 1.15),
-    clamp01(rawBalance[2] / balLuma, 0.75, 1.4),
-  ];
-
   const greenCast = weightSum ? greenCastSum / weightSum : 0;
   const yellowCast = weightSum ? yellowCastSum / weightSum : 0;
   const noise = clamp01((noiseCount ? noiseSum / noiseCount : 0) * 14);
   // Bias cast score upward so heavy matcha veils auto-pick stronger neutralize
   const castScore = clamp01(greenCast * 7.2 + yellowCast * 2.4 + Math.max(0, gMean - rMean) * 2.8);
   const crush = clamp01(1 - (high - low) / 0.86);
-  const analysisMix = clamp01(0.55 + Math.min(0.35, coverage * 1.8) + castScore * 0.2, 0.5, 0.98);
 
-  const neutralize = Math.round(clamp01(0.62 + castScore * 0.45, 0.7, 0.97) * 100);
-  const denoise = Math.round(clamp01(0.32 + noise * 0.55 + castScore * 0.14, 0.32, 0.82) * 100);
-  const detail = Math.round(clamp01(0.3 + noise * 0.16 + crush * 0.12, 0.28, 0.58) * 100);
+  // Strong green veils should be handled by neutralizeCast, not extreme channel gains
+  // (gain-based "correction" flips olive into magenta on skin).
+  const castGuard = clamp01(greenCast * 5.5);
+  let analysisMix = clamp01(0.4 + Math.min(0.22, coverage * 1.2) + castScore * 0.1, 0.35, 0.72);
+  analysisMix *= 1 - castGuard * 0.45;
+
+  let balance: [number, number, number] = [
+    clamp01(rawBalance[0] / balLuma, 0.85, 1.16),
+    clamp01(rawBalance[1] / balLuma, 0.86, 1.08),
+    clamp01(rawBalance[2] / balLuma, 0.85, 1.14),
+  ];
+  balance = [
+    balance[0] * (1 - castGuard * 0.55) + 1 * castGuard * 0.55,
+    balance[1] * (1 - castGuard * 0.35) + 1 * castGuard * 0.35,
+    balance[2] * (1 - castGuard * 0.55) + 1 * castGuard * 0.55,
+  ];
+
+  // Cap auto strength — aggressive neutralize + blue boost was flipping green to magenta
+  const neutralize = Math.round(clamp01(0.48 + castScore * 0.28, 0.46, 0.74) * 100);
+  const denoise = Math.round(clamp01(0.28 + noise * 0.5 + castScore * 0.12, 0.28, 0.72) * 100);
+  const detail = Math.round(clamp01(0.34 + noise * 0.16 + crush * 0.12, 0.32, 0.62) * 100);
 
   return {
     neutralize,
@@ -632,12 +644,12 @@ export function analyzeFrame(
 export function mergeAnalyzeResults(results: AnalyzeResult[]): AnalyzeResult {
   if (results.length === 0) {
     return {
-      neutralize: 82,
-      denoise: 55,
-      detail: 48,
-      balance: [1.08, 0.86, 1.12],
+      neutralize: 68,
+      denoise: 48,
+      detail: 52,
+      balance: [1.02, 0.98, 1.03],
       toneRange: [0, 1],
-      analysisMix: 0.72,
+      analysisMix: 0.48,
       greenCast: 0.12,
       yellowCast: 0.06,
       noise: 0.22,

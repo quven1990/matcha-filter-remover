@@ -30,7 +30,7 @@ const faq = [
   },
   {
     q: "Do you upload my media?",
-    a: "No for the default on-device remover. Processing stays in your browser.",
+    a: "Default processing stays in your browser. You can optionally share a compressed sample after upload if you opt in — see Privacy.",
   },
   {
     q: "Is Matcha Filter affiliated with TikTok?",
@@ -154,8 +154,8 @@ export default function RemovePage() {
         <h2>Free, private, no account</h2>
         <h3>On-device by default</h3>
         <p>
-          The default remover runs in your browser. No signup is required, and your media is
-          not uploaded to our servers for this tool.
+          The default remover runs in your browser. No signup is required. Media stays on-device
+          unless you explicitly opt in to share a compressed sample.
         </p>
         <h3>Related guides</h3>
         <p>

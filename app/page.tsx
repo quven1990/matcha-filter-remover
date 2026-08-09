@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { HeroCompare } from "@/components/HeroCompare";
 
 export const metadata: Metadata = {
   title: "Matcha Filter — Viral Matcha Look, Apply or Remove Online",
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
-      <section className="hero">
+      <section className="hero hero-with-compare">
         <div className="hero-atmosphere" aria-hidden>
           <span className="hero-blob hero-blob-a" />
           <span className="hero-blob hero-blob-b" />
@@ -22,18 +23,24 @@ export default function HomePage() {
           <p className="eyebrow">On-device · Private</p>
           <h1 className="display brand-display">Matcha Filter</h1>
           <p className="lead">
-            Apply the viral green look, or dial it back when you need a clearer frame —
-            processed on your device.
+            Too green? Upload a photo or short clip and dial the matcha cast back —
+            right in your browser.
           </p>
           <div className="cta-row">
-            <Link href="/remove" className="btn-primary">
+            <Link href="/remove" className="btn-primary btn-primary-lg">
               Remove Matcha Filter
             </Link>
-            <Link href="/apply" className="btn-secondary">
-              Apply Matcha Filter
+            <Link href="/apply" className="btn-text">
+              Or apply the look
             </Link>
           </div>
+          <p className="hero-trust">Free · No account · Media stays on your device</p>
         </div>
+        <HeroCompare
+          beforeSrc="/demo/with-filter.webp"
+          afterSrc="/demo/filter-removed.webp"
+          href="/remove"
+        />
       </section>
 
       <section className="section section-split">
@@ -42,8 +49,8 @@ export default function HomePage() {
           <h2>Two tools. One matcha trend.</h2>
         </div>
         <div className="path-row">
-          <Link href="/remove" className="path-link">
-            <span className="path-kicker">Most searched</span>
+          <Link href="/remove" className="path-link path-link-featured">
+            <span className="path-kicker">Most used</span>
             <h3>Remove Matcha Filter</h3>
             <span>Reduce green cast, grain, and haze on a saved photo or short video.</span>
           </Link>
@@ -59,10 +66,11 @@ export default function HomePage() {
         <p className="eyebrow">Privacy</p>
         <h2>Private by default — media stays in your browser.</h2>
         <h3>On-device WebGL processing</h3>
-        <p>
-          Default tools run on-device with WebGL. No account wall, no upload server for
-          the free remover and apply flow.
-        </p>
+      <p>
+        The default Apply and Remove tools process media in your browser. Media is not
+        uploaded unless you explicitly opt in to share a compressed sample (see Privacy
+        Policy).
+      </p>
       </section>
 
       <section className="section section-last">

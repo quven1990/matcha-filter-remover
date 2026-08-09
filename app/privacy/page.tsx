@@ -16,10 +16,19 @@ export default function PrivacyPage() {
         matchafilter.online.
       </p>
       <h2>Media you process</h2>
-      <h3>On-device tools</h3>
+      <h3>On-device tools (default)</h3>
       <p>
         The default Apply and Remove tools process media in your browser. We do not
-        upload that media to our servers for the default tools.
+        upload that media to our servers unless you explicitly opt in to share a sample.
+      </p>
+      <h3>Voluntary sample sharing</h3>
+      <p>
+        After you upload a file, you may optionally choose “Share sample” and confirm
+        consent. Only then do we receive a compressed thumbnail/frame (no original
+        filename) so we can review difficult matcha cases and improve the tools. Samples
+        are stored privately in our D1 database, are not published, and are not used
+        for advertising. You can request deletion by emailing{" "}
+        <a href="mailto:privacy@matchafilter.online">privacy@matchafilter.online</a>.
       </p>
       <h2>Analytics</h2>
       <h3>Plausible, Google Analytics, and Clarity</h3>

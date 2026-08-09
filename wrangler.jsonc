@@ -1,5 +1,13 @@
 {
   "name": "matcha-filter",
   "compatibility_date": "2026-08-01",
-  "pages_build_output_dir": "out"
+  "pages_build_output_dir": "out",
+  "d1_databases": [
+    {
+      "binding": "SAMPLES_DB",
+      "database_name": "matcha-filter-samples",
+      "database_id": "e2d6f9ac-a798-45b2-9054-b2afa63abacb",
+      "migrations_dir": "migrations"
+    }
+  ]
 }

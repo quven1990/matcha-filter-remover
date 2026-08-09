@@ -8,6 +8,7 @@ import {
   track,
   valueBucket,
 } from "@/lib/analytics";
+import { canvasToSampleBlob, uploadVoluntarySample } from "@/lib/sample-share";
 import {
   MAX_IMAGE_MB,
   MAX_VIDEO_SECONDS,
@@ -308,6 +309,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [saveSheet, setSaveSheet] = useState<SaveSheetState | null>(null);
   const [mobileSaveUi, setMobileSaveUi] = useState(false);
   const [autoTuned, setAutoTuned] = useState(false);
+  const [shareConsent, setShareConsent] = useState(false);
+  const [shareState, setShareState] = useState<"idle" | "uploading" | "done" | "error">("idle");
+  const [shareError, setShareError] = useState<string | null>(null);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -441,6 +445,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setVideoDuration(0);
     setShowTip(false);
     setAutoTuned(false);
+    setShareConsent(false);
+    setShareState("idle");
+    setShareError(null);
     clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -804,6 +811,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setBusy(true);
     setShowTip(false);
     setAutoTuned(false);
+    setShareConsent(false);
+    setShareState("idle");
+    setShareError(null);
     stopLoop();
     clearObjectUrl();
     setReady(false);
@@ -1070,6 +1080,62 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       return;
     }
     void onFile(file);
+  };
+
+  const shareSample = async () => {
+    if (!ready || busy || shareState === "uploading" || shareState === "done") return;
+    if (!shareConsent) {
+      setShareError("Check the consent box first.");
+      setShareState("error");
+      return;
+    }
+    const source = sourceCanvasRef.current;
+    const video = videoRef.current;
+    if (!source || !kind) return;
+
+    setShareState("uploading");
+    setShareError(null);
+    trackTool("tool_sample_share_click", { media_type: kind });
+
+    try {
+      // Prefer the uploaded source frame (left side), not the processed result.
+      if (kind === "video" && video) {
+        const ctx = source.getContext("2d", { willReadFrequently: true });
+        if (!ctx) throw new Error("canvas_unavailable");
+        if (video.videoWidth > 0) {
+          if (source.width !== video.videoWidth || source.height !== video.videoHeight) {
+            source.width = video.videoWidth;
+            source.height = video.videoHeight;
+          }
+          ctx.drawImage(video, 0, 0);
+        }
+      }
+      if (!source.width || !source.height) throw new Error("empty_frame");
+
+      const blob = await canvasToSampleBlob(source, source.width, source.height);
+      const result = await uploadVoluntarySample(blob, {
+        mode,
+        mediaType: kind,
+        width: source.width,
+        height: source.height,
+      });
+      if (!result.ok) {
+        setShareState("error");
+        setShareError(
+          result.error === "sample_storage_unavailable"
+            ? "Sample inbox is not ready yet. Try again later."
+            : "Could not send the sample. Please try again.",
+        );
+        trackTool("tool_sample_share_fail", { media_type: kind, reason: result.error });
+        return;
+      }
+      setShareState("done");
+      trackTool("tool_sample_share_success", { media_type: kind });
+    } catch {
+      setShareState("error");
+      setShareError("Could not prepare the sample from this frame.");
+      trackTool("tool_sample_share_fail", { media_type: kind, reason: "client" });
+    }
   };
 
   const download = async () => {
@@ -1395,7 +1461,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   return (
     <section className={`tool-shell ${ready ? "has-export-dock" : ""}`}>
       <div className="tool-intro">
-        <p className="eyebrow">{isRemove ? "Remove workspace" : "Apply workspace"} · On-device · No upload</p>
+        <p className="eyebrow">{isRemove ? "Remove workspace" : "Apply workspace"} · On-device · Opt-in sample</p>
         <h1 className="display mt-2">{title}</h1>
         <p className="lead mt-3">{subtitle}</p>
         <p className="tool-howto tool-howto-desktop">
@@ -1403,9 +1469,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             ? "Left = your upload still with the green matcha look. Right = after we reduce that cast. Drag the split, or hold “Show original” to flash the full left-side frame."
             : "Left = your original upload. Right = with the matcha look applied. Drag the split, or hold “Show original” to flash the untouched frame."}
         </p>
-        <p className="tool-howto tool-howto-mobile">
-          Drag the vertical line to compare. Press and hold “Show original” to peek the full before frame.
-        </p>
+        {ready && (
+          <p className="tool-howto tool-howto-mobile">
+            Drag the vertical line to compare. Press and hold “Show original” to peek the full before
+            frame.
+          </p>
+        )}
       </div>
 
       <div className="tool-layout">
@@ -1625,6 +1694,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             </div>
           )}
 
+          {ready && (
           <div className="control-block adjust-block">
             <div className="control-block-head">
               <h2>1. Adjust effect</h2>
@@ -1777,6 +1847,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               </div>
             )}
           </div>
+          )}
 
           {ready && (
             <div className="control-block compare-block">
@@ -1852,8 +1923,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
           <div className={`control-block export-block export-block-panel ${ready ? "is-ready" : ""}`}>
             <div className="control-block-head">
-              <h2>{ready ? "3. Export" : "2. Export"}</h2>
-              <p>{ready ? "Download keeps your source format when possible." : "Upload first, then export."}</p>
+              <h2>{ready ? "3. Export" : "Next"}</h2>
+              <p>{ready ? "Download keeps your source format when possible." : "Upload a photo or short video to start."}</p>
             </div>
             <div className="action-row">
               {ready ? (
@@ -1899,10 +1970,64 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             </div>
           )}
 
+          {ready && (
+            <div className="sample-share">
+              <div className="sample-share-head">
+                <strong>Help improve Matcha Filter</strong>
+                <span>Optional · compressed thumbnail only</span>
+              </div>
+              <label className="sample-share-consent">
+                <input
+                  type="checkbox"
+                  checked={shareConsent}
+                  disabled={shareState === "uploading" || shareState === "done"}
+                  onChange={(e) => {
+                    setShareConsent(e.target.checked);
+                    if (shareState === "error") {
+                      setShareState("idle");
+                      setShareError(null);
+                    }
+                  }}
+                />
+                <span>
+                  <span className="sample-share-copy-long">
+                    I agree to upload a compressed copy of this frame (no filename) so the team can
+                    review hard matcha cases. Default processing still stays on-device.{" "}
+                    <a href="/privacy">Privacy</a>
+                  </span>
+                  <span className="sample-share-copy-short">
+                    Share a compressed frame to help improve the tool. Still optional.{" "}
+                    <a href="/privacy">Privacy</a>
+                  </span>
+                </span>
+              </label>
+              <div className="sample-share-actions">
+                <button
+                  type="button"
+                  className="btn-secondary btn-compact"
+                  disabled={!shareConsent || shareState === "uploading" || shareState === "done"}
+                  onClick={() => void shareSample()}
+                >
+                  {shareState === "uploading"
+                    ? "Sending…"
+                    : shareState === "done"
+                      ? "Sample sent"
+                      : "Share sample"}
+                </button>
+                {shareState === "done" && (
+                  <span className="sample-share-status is-ok">Thanks — received.</span>
+                )}
+                {shareState === "error" && shareError && (
+                  <span className="sample-share-status is-bad">{shareError}</span>
+                )}
+              </div>
+            </div>
+          )}
+
           <p className="fineprint">
             {isRemove
-              ? "Best-effort cleanup only. Cannot reveal hidden or censored content. Media never leaves this browser tab."
-              : "Local WebGL look inspired by the viral matcha style. Not affiliated with TikTok."}
+              ? "Best-effort cleanup only. Cannot reveal hidden or censored content. Default tools keep media in this browser tab unless you opt in to share a sample."
+              : "Local WebGL look inspired by the viral matcha style. Not affiliated with TikTok. Sharing a sample is optional and off by default."}
           </p>
         </aside>
       </div>

@@ -20,6 +20,11 @@ export default function CookiePage() {
         Clarity may set analytics cookies (for example <code>_ga</code> or Clarity session
         cookies); see the Privacy Policy for details.
       </p>
+      <h3>Voluntary samples</h3>
+      <p>
+        Opt-in sample sharing does not rely on cookies; it only runs after you explicitly
+        consent and tap Share sample in the tool.
+      </p>
 
       <h2>Your choices</h2>
       <h3>Browser controls</h3>

@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "deploy": "npm run build && wrangler pages deploy out --project-name matcha-filter"
+    "deploy": "npm run build && wrangler pages deploy out --project-name matcha-filter",
+    "samples:list": "wrangler d1 execute matcha-filter-samples --remote --command \"SELECT id, mode, media_type, width, height, byte_size, created_at FROM samples ORDER BY created_at DESC LIMIT 30\"",
+    "samples:get": "node scripts/export-sample.mjs"
   },
   "dependencies": {
     "next": "^15.0.0",
@@ -16,6 +18,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260809.1",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
