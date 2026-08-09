@@ -6,6 +6,9 @@
 
 export type ProcessMode = "remove" | "apply";
 
+/** Bump when Apply/Remove shaders change so open sessions pick up new programs. */
+export const PIPELINE_REV = 4;
+
 export type ApplyParams = {
   strength: number;
   liquid: number;
@@ -214,51 +217,52 @@ vec3 adaptiveBalance(vec3 color){
 }
 
 vec3 neutralizeCast(vec3 color, float neutralize){
-  // Mid slider values feel stronger (ease curve)
-  float n = pow(clamp(neutralize, 0.0, 1.0), 0.78);
+  // Mid slider values feel stronger (ease curve) — keep softer than before so
+  // heavy olive veils don't collapse into magenta.
+  float n = pow(clamp(neutralize, 0.0, 1.0), 0.88);
   float L0 = luma(color);
 
-  // Primary green excess vs red+blue — pull G down; only gently refill R/B
-  // (heavy R/B refill was causing magenta overshoot on strong matcha veils)
+  // Primary green excess vs red+blue — pull G down; almost no R/B refill
   float greenExcess = max(color.g - (color.r + color.b) * 0.5, 0.0);
-  color.g -= greenExcess * n * 1.15;
-  color.r += greenExcess * n * 0.1;
-  color.b += greenExcess * n * 0.08;
+  color.g -= greenExcess * n * 0.88;
+  color.r += greenExcess * n * 0.035;
+  color.b += greenExcess * n * 0.025;
 
   // Olive / matcha yellow-green (R and G both high vs B)
-  float olive = max(color.g - color.b, 0.0) * 0.7 + max(color.r - color.b, 0.0) * 0.28;
-  color.g -= olive * n * 0.58;
-  color.r -= olive * n * 0.12;
-  color.b += olive * n * 0.18;
+  float olive = max(color.g - color.b, 0.0) * 0.65 + max(color.r - color.b, 0.0) * 0.22;
+  color.g -= olive * n * 0.42;
+  color.r -= olive * n * 0.16;
+  color.b += olive * n * 0.08;
 
   // Global green channel pull toward mean of R/B (veil remover)
   float rb = (color.r + color.b) * 0.5;
   float veil = max(0.0, color.g - rb);
-  color.g = mix(color.g, rb, veil * n * 0.72);
+  color.g = mix(color.g, rb, veil * n * 0.52);
 
   // Also pull when green merely dominates (dark teal / murky green footage)
   float gDom = max(0.0, color.g - max(color.r, color.b));
-  color.g -= gDom * n * 0.7;
-  color.r += gDom * n * 0.08;
-  color.b += gDom * n * 0.09;
+  color.g -= gDom * n * 0.48;
 
   // Shadow green cleanup (TikTok heavy veils crush into shadows)
   float shadow = 1.0 - smoothstep(0.05, 0.5, L0);
   float highlight = smoothstep(0.5, 0.92, L0);
-  color.g -= max(0.0, color.g - color.r) * shadow * 0.48 * n;
-  color.g -= max(0.0, color.g - color.b) * highlight * 0.22 * n;
+  color.g -= max(0.0, color.g - color.r) * shadow * 0.32 * n;
+  color.g -= max(0.0, color.g - color.b) * highlight * 0.14 * n;
 
-  // Yellow cast leftover
+  // Yellow cast leftover — prefer cooling R/G over dumping blue (blue → magenta)
   float yellowExcess = max((color.r + color.g) * 0.5 - color.b, 0.0);
-  color.b += yellowExcess * n * 0.4;
-  color.g -= yellowExcess * n * 0.16;
+  color.b += yellowExcess * n * 0.16;
+  color.g -= yellowExcess * n * 0.07;
+  color.r -= yellowExcess * n * 0.08;
 
-  // Desat remaining green hue toward luma
+  // Desat remaining green hue toward luma (no R/B refill)
   float L = luma(color);
   float gPull = max(0.0, color.g - L);
-  color.g -= gPull * n * 0.48;
-  color.r += gPull * n * 0.16;
-  color.b += gPull * n * 0.2;
+  color.g -= gPull * n * 0.3;
+
+  // Floor: keep G from falling far below the cooler channels (blocks pink crash)
+  float coolMin = min(color.r, color.b);
+  color.g = max(color.g, mix(color.g, coolMin * 0.96, n * 0.7));
 
   return color;
 }
@@ -283,31 +287,36 @@ void main(){
     smoothed = mix(smoothed, previous, temporalMix);
   }
 
-  // Dual-pass neutralize — strong enough to read, without crushing dark frames
+  // Dual-pass neutralize — second pass stays light to avoid magenta overshoot
   vec3 pass1 = neutralizeCast(adaptiveBalance(smoothed), neutralize);
-  vec3 corrected = neutralizeCast(pass1, neutralize * 0.45);
+  vec3 corrected = neutralizeCast(pass1, neutralize * 0.22);
   vec3 broadSource = edgeNeighborhood(uv, 2.8 + denoise * 1.4, min(1.0, denoise + 0.18));
-  vec3 broad = neutralizeCast(adaptiveBalance(broadSource), neutralize * 0.85);
+  vec3 broad = neutralizeCast(adaptiveBalance(broadSource), neutralize * 0.7);
   float edgeGuard = 1.0 - smoothstep(0.11, 0.34, length(corrected - broad));
   vec3 detail = corrected + (corrected - broad) * restore * 0.48 * edgeGuard;
-  float contrast = 1.0 + restore * 0.1 + neutralize * 0.05;
+  float contrast = 1.0 + restore * 0.08 + neutralize * 0.035;
   detail = (detail - 0.5) * contrast + 0.5;
 
   // Lift crushed midtones that matcha grade often flattens — keep it gentle so
   // remove doesn't turn into a purple-black crush.
-  detail = mix(detail, pow(max(detail, 0.0), vec3(0.94)), neutralize * 0.14);
+  detail = mix(detail, pow(max(detail, 0.0), vec3(0.94)), neutralize * 0.12);
 
   // recover some lift lost when pulling green out of dark frames
   float L1 = luma(detail);
   float L2 = luma(center);
-  detail += (L2 - L1) * vec3(0.22) * neutralize;
+  detail += (L2 - L1) * vec3(0.18) * neutralize;
 
-  // prevent magenta/purple blowout on aggressive neutralize
+  // Strong magenta/purple repair toward warm-neutral (not pink)
   float magenta = max(0.0, (detail.r + detail.b) * 0.5 - detail.g);
-  detail.g += magenta * 0.34 * neutralize;
-  float purple = max(0.0, detail.b - detail.g) * max(0.0, detail.r - detail.g * 0.5);
-  detail.b -= purple * 0.45 * neutralize;
-  detail.r -= purple * 0.2 * neutralize;
+  detail.g += magenta * 0.78;
+  detail.r -= magenta * 0.3;
+  detail.b -= magenta * 0.42;
+  float purple = max(0.0, detail.b - detail.g) * max(0.0, detail.r - detail.g * 0.55);
+  detail.b -= purple * 0.75;
+  detail.r -= purple * 0.32;
+  float redLead = max(0.0, detail.r - max(detail.g, detail.b));
+  detail.r -= redLead * 0.28 * neutralize;
+  detail.g += redLead * 0.14 * neutralize;
 
   outColor = vec4(clamp(detail, 0.0, 1.0), 1.0);
 }`;
@@ -623,7 +632,7 @@ export function analyzeFrame(
   ];
 
   // Cap auto strength — aggressive neutralize + blue boost was flipping green to magenta
-  const neutralize = Math.round(clamp01(0.48 + castScore * 0.28, 0.46, 0.74) * 100);
+  const neutralize = Math.round(clamp01(0.42 + castScore * 0.22, 0.4, 0.62) * 100);
   const denoise = Math.round(clamp01(0.28 + noise * 0.5 + castScore * 0.12, 0.28, 0.72) * 100);
   const detail = Math.round(clamp01(0.34 + noise * 0.16 + crush * 0.12, 0.32, 0.62) * 100);
 

@@ -1274,11 +1274,25 @@ a {
 
 .sample-share {
   display: grid;
-  gap: 0.7rem;
-  padding: 0.95rem 1rem;
+  gap: 0.55rem;
+  padding: 0.75rem 0.9rem;
   border-radius: var(--radius);
-  border: 1px dashed rgba(31, 122, 69, 0.28);
-  background: rgba(255, 255, 255, 0.55);
+  border: 1px dashed rgba(31, 122, 69, 0.26);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.sample-share.is-hard {
+  border-color: rgba(31, 122, 69, 0.42);
+  background: rgba(236, 245, 237, 0.72);
+}
+
+.sample-share-done {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  color: var(--matcha-deep);
 }
 
 .sample-share-head {
@@ -1317,6 +1331,10 @@ a {
   color: var(--matcha-deep);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+
+.sample-share-copy-short {
+  display: none;
 }
 
 .sample-share-actions {
@@ -1579,23 +1597,23 @@ a {
     order: 2;
   }
 
-  .adjust-block {
+  .sample-share {
     order: 3;
   }
 
-  .compare-block {
+  .adjust-block {
     order: 4;
   }
 
-  .export-block-panel {
+  .compare-block {
     order: 5;
   }
 
-  .controls-panel > .error-banner {
+  .export-block-panel {
     order: 6;
   }
 
-  .sample-share {
+  .controls-panel > .error-banner {
     order: 7;
   }
 

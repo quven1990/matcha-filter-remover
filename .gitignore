@@ -5,6 +5,8 @@ out
 .dev.vars
 .env
 .env.local
-*.log
-.DS_Store
+sample-*.jpg
+sample-*.png
+sample-*.webp
+
 tsconfig.tsbuildinfo

@@ -13,6 +13,7 @@ import {
   MAX_IMAGE_MB,
   MAX_VIDEO_SECONDS,
   MatchaGL,
+  PIPELINE_REV,
   analyzeFrame,
   mergeAnalyzeResults,
   type AnalyzeResult,
@@ -297,6 +298,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const objectUrlRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const glRef = useRef<MatchaGL | null>(null);
+  const pipelineRevRef = useRef(PIPELINE_REV);
   const startTimeRef = useRef(performance.now());
   const uploadReadyAtRef = useRef<number | null>(null);
   const compareSeenRef = useRef(new Set<string>());
@@ -312,6 +314,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [shareConsent, setShareConsent] = useState(false);
   const [shareState, setShareState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [shareError, setShareError] = useState<string | null>(null);
+  const [sharePromptHidden, setSharePromptHidden] = useState(false);
+  const [hardCase, setHardCase] = useState(false);
+  const shareRevivedRef = useRef(false);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -398,6 +403,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const ensureGL = useCallback(() => {
     const canvas = glCanvasRef.current;
     if (!canvas) return null;
+    if (glRef.current && pipelineRevRef.current !== PIPELINE_REV) {
+      glRef.current.dispose();
+      glRef.current = null;
+    }
+    pipelineRevRef.current = PIPELINE_REV;
     if (!glRef.current) {
       try {
         glRef.current = new MatchaGL(canvas);
@@ -448,6 +458,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setShareConsent(false);
     setShareState("idle");
     setShareError(null);
+    setSharePromptHidden(false);
+    setHardCase(false);
+    shareRevivedRef.current = false;
     clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -464,6 +477,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   useEffect(() => {
     trackTool("tool_view");
   }, [trackTool]);
+
+  useEffect(() => {
+    if (shareState !== "done") return;
+    const timer = window.setTimeout(() => setSharePromptHidden(true), 2800);
+    return () => window.clearTimeout(timer);
+  }, [shareState]);
 
   useEffect(
     () => () => {
@@ -667,6 +686,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       setDenoise(result.denoise);
       setDetail(result.detail);
       setAutoTuned(true);
+      setHardCase(
+        result.greenCast >= 0.11 || result.yellowCast >= 0.18 || result.neutralize >= 58,
+      );
       paramsRef.current = {
         ...paramsRef.current,
         neutralize: result.neutralize,
@@ -814,6 +836,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setShareConsent(false);
     setShareState("idle");
     setShareError(null);
+    setSharePromptHidden(false);
+    setHardCase(false);
+    shareRevivedRef.current = false;
     stopLoop();
     clearObjectUrl();
     setReady(false);
@@ -1095,7 +1120,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
     setShareState("uploading");
     setShareError(null);
-    trackTool("tool_sample_share_click", { media_type: kind });
+    trackTool("tool_sample_share_click", { media_type: kind, hard_case: hardCase });
 
     try {
       // Prefer the uploaded source frame (left side), not the processed result.
@@ -1130,7 +1155,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         return;
       }
       setShareState("done");
-      trackTool("tool_sample_share_success", { media_type: kind });
+      trackTool("tool_sample_share_success", { media_type: kind, hard_case: hardCase });
     } catch {
       setShareState("error");
       setShareError("Could not prepare the sample from this frame.");
@@ -1694,6 +1719,99 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             </div>
           )}
 
+          {ready && !sharePromptHidden && (
+            <div
+              className={`sample-share ${hardCase && isRemove ? "is-hard" : ""}`}
+              role="region"
+              aria-label="Optional sample share"
+            >
+              {shareState === "done" ? (
+                <div className="sample-share-done">
+                  <span>Thanks — received. Used only to improve the tools.</span>
+                  <button
+                    type="button"
+                    className="engage-tip-dismiss"
+                    onClick={() => setSharePromptHidden(true)}
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="sample-share-head">
+                    <strong>
+                      {isRemove
+                        ? hardCase
+                          ? "Tough matcha cast on this frame"
+                          : "Optional: help improve remove"
+                        : "Optional: help match the viral look"}
+                    </strong>
+                    <span>Compressed frame · no filename</span>
+                  </div>
+                  <label className="sample-share-consent">
+                    <input
+                      type="checkbox"
+                      checked={shareConsent}
+                      disabled={shareState === "uploading"}
+                      onChange={(e) => {
+                        setShareConsent(e.target.checked);
+                        if (shareState === "error") {
+                          setShareState("idle");
+                          setShareError(null);
+                        }
+                      }}
+                    />
+                    <span>
+                      <span className="sample-share-copy-long">
+                        {isRemove
+                          ? hardCase
+                            ? "Cases like yours are how we tune the remover. Share a compressed frame — default processing still stays on-device. "
+                            : "Share a compressed frame so we can review real matcha clips. Default processing still stays on-device. "
+                          : "Share a compressed frame of this look so we can refine Apply. Default processing still stays on-device. "}
+                        <a href="/privacy">Privacy</a>
+                      </span>
+                      <span className="sample-share-copy-short">
+                        {isRemove
+                          ? hardCase
+                            ? "Share this hard case to improve remove. "
+                            : "Share a compressed frame to improve remove. "
+                          : "Share this look to improve Apply. "}
+                        <a href="/privacy">Privacy</a>
+                      </span>
+                    </span>
+                  </label>
+                  <div className="sample-share-actions">
+                    <button
+                      type="button"
+                      className="btn-secondary btn-compact"
+                      disabled={!shareConsent || shareState === "uploading"}
+                      onClick={() => void shareSample()}
+                    >
+                      {shareState === "uploading" ? "Sending…" : "Share sample"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-ghost btn-compact"
+                      disabled={shareState === "uploading"}
+                      onClick={() => {
+                        setSharePromptHidden(true);
+                        trackTool("tool_sample_share_dismiss", {
+                          media_type: kind,
+                          hard_case: hardCase,
+                        });
+                      }}
+                    >
+                      Not now
+                    </button>
+                    {shareState === "error" && shareError && (
+                      <span className="sample-share-status is-bad">{shareError}</span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {ready && (
           <div className="control-block adjust-block">
             <div className="control-block-head">
@@ -1789,6 +1907,21 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       preset: "stronger_remove",
                       media_type: kind || undefined,
                     });
+                    // One soft re-ask after they push harder — still dismissible, never blocks export.
+                    if (
+                      sharePromptHidden &&
+                      shareState !== "done" &&
+                      !shareRevivedRef.current
+                    ) {
+                      shareRevivedRef.current = true;
+                      setSharePromptHidden(false);
+                      setShareConsent(false);
+                      trackTool("tool_sample_share_revive", {
+                        media_type: kind || undefined,
+                        hard_case: hardCase,
+                        reason: "stronger_remove",
+                      });
+                    }
                   }}
                 >
                   Stronger remove preset
@@ -1967,60 +2100,6 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             <div className={`error-banner ${error.tone === "info" ? "is-info" : ""}`} role="alert">
               <div className="error-banner-title">{error.title}</div>
               <div className="error-banner-detail">{error.detail}</div>
-            </div>
-          )}
-
-          {ready && (
-            <div className="sample-share">
-              <div className="sample-share-head">
-                <strong>Help improve Matcha Filter</strong>
-                <span>Optional · compressed thumbnail only</span>
-              </div>
-              <label className="sample-share-consent">
-                <input
-                  type="checkbox"
-                  checked={shareConsent}
-                  disabled={shareState === "uploading" || shareState === "done"}
-                  onChange={(e) => {
-                    setShareConsent(e.target.checked);
-                    if (shareState === "error") {
-                      setShareState("idle");
-                      setShareError(null);
-                    }
-                  }}
-                />
-                <span>
-                  <span className="sample-share-copy-long">
-                    I agree to upload a compressed copy of this frame (no filename) so the team can
-                    review hard matcha cases. Default processing still stays on-device.{" "}
-                    <a href="/privacy">Privacy</a>
-                  </span>
-                  <span className="sample-share-copy-short">
-                    Share a compressed frame to help improve the tool. Still optional.{" "}
-                    <a href="/privacy">Privacy</a>
-                  </span>
-                </span>
-              </label>
-              <div className="sample-share-actions">
-                <button
-                  type="button"
-                  className="btn-secondary btn-compact"
-                  disabled={!shareConsent || shareState === "uploading" || shareState === "done"}
-                  onClick={() => void shareSample()}
-                >
-                  {shareState === "uploading"
-                    ? "Sending…"
-                    : shareState === "done"
-                      ? "Sample sent"
-                      : "Share sample"}
-                </button>
-                {shareState === "done" && (
-                  <span className="sample-share-status is-ok">Thanks — received.</span>
-                )}
-                {shareState === "error" && shareError && (
-                  <span className="sample-share-status is-bad">{shareError}</span>
-                )}
-              </div>
             </div>
           )}
 

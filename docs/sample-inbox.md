@@ -2,6 +2,12 @@
 
 Users can opt in on `/remove` or `/apply` to upload a compressed thumbnail/frame.
 
+Guidance (compliant):
+- Prompt appears right after upload, above Adjust — dismissible with Not now
+- Hard-cast frames get stronger copy; still requires explicit checkbox
+- Soft one-time re-ask after “Stronger remove” if they dismissed earlier
+- Never blocks export; default processing stays on-device
+
 ## Status
 
 - D1 database: `matcha-filter-samples`
