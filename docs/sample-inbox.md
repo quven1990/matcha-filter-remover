@@ -3,10 +3,11 @@
 Users can opt in on `/remove` or `/apply` to upload a compressed thumbnail/frame.
 
 Guidance (compliant):
-- Prompt appears right after upload, above Adjust — dismissible with Not now
-- Hard-cast frames get stronger copy; still requires explicit checkbox
-- Soft one-time re-ask after “Stronger remove” if they dismissed earlier
-- Never blocks export; default processing stays on-device
+- Do not interrupt immediately after upload
+- Ask once per browser tab after first slider/preset tweak (~0.9s), or before Save/Download
+- Confirm uploads a compressed frame; Cancel skips and suppresses further prompts this session
+- If the prompt appears before Save, Cancel/Confirm both continue the save afterward
+- Never blocks the adjust UI; default processing stays on-device; no silent auto-upload
 
 ## Status
 

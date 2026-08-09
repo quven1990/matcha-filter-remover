@@ -22,8 +22,8 @@ export default function CookiePage() {
       </p>
       <h3>Voluntary samples</h3>
       <p>
-        Opt-in sample sharing does not rely on cookies. The consent box may be pre-checked;
-        nothing is uploaded until you tap Share sample (you can uncheck or choose Not now).
+        Opt-in sample sharing does not rely on cookies. We may ask once after you adjust or
+        before Save; nothing uploads unless you confirm. Cancel means we collect nothing.
       </p>
 
       <h2>Your choices</h2>

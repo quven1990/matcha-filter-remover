@@ -20,6 +20,24 @@ import {
   type ProcessMode,
 } from "@/lib/webgl-matcha";
 
+const SAMPLE_SHARE_DECISION_KEY = "mfr_sample_share_decision_v1";
+
+function hasSampleShareDecision() {
+  try {
+    return sessionStorage.getItem(SAMPLE_SHARE_DECISION_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markSampleShareDecision() {
+  try {
+    sessionStorage.setItem(SAMPLE_SHARE_DECISION_KEY, "1");
+  } catch {
+    /* ignore private-mode failures */
+  }
+}
+
 type MediaToolProps = {
   mode: ProcessMode;
   title: string;
@@ -295,6 +313,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const compareWrapRef = useRef<HTMLDivElement>(null);
+  const adjustBlockRef = useRef<HTMLDivElement>(null);
+  const adjustHintShownRef = useRef(false);
   const objectUrlRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const glRef = useRef<MatchaGL | null>(null);
@@ -311,12 +331,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [saveSheet, setSaveSheet] = useState<SaveSheetState | null>(null);
   const [mobileSaveUi, setMobileSaveUi] = useState(false);
   const [autoTuned, setAutoTuned] = useState(false);
-  const [shareConsent, setShareConsent] = useState(true);
   const [shareState, setShareState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [shareError, setShareError] = useState<string | null>(null);
-  const [sharePromptHidden, setSharePromptHidden] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [hardCase, setHardCase] = useState(false);
-  const shareRevivedRef = useRef(false);
+  const pendingDownloadRef = useRef(false);
+  const skipShareGateRef = useRef(false);
+  const adjustShareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const downloadFnRef = useRef<(opts?: { skipShareGate?: boolean }) => Promise<void>>(
+    async () => undefined,
+  );
+  const scheduleShareAfterAdjustRef = useRef<() => void>(() => undefined);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -380,6 +405,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           value_bucket: valueBucket(value),
           media_type: kind || undefined,
         });
+        scheduleShareAfterAdjustRef.current();
       }, 400);
     },
     [kind, trackTool],
@@ -455,12 +481,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setVideoDuration(0);
     setShowTip(false);
     setAutoTuned(false);
-    setShareConsent(true);
     setShareState("idle");
     setShareError(null);
-    setSharePromptHidden(false);
+    setShareModalOpen(false);
     setHardCase(false);
-    shareRevivedRef.current = false;
+    pendingDownloadRef.current = false;
+    skipShareGateRef.current = false;
+    if (adjustShareTimerRef.current) {
+      clearTimeout(adjustShareTimerRef.current);
+      adjustShareTimerRef.current = null;
+    }
+    adjustHintShownRef.current = false;
     clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -480,9 +511,82 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
   useEffect(() => {
     if (shareState !== "done") return;
-    const timer = window.setTimeout(() => setSharePromptHidden(true), 2800);
+    const timer = window.setTimeout(() => {
+      setShareModalOpen(false);
+      setShareState("idle");
+    }, 1200);
     return () => window.clearTimeout(timer);
   }, [shareState]);
+
+  const offerSharePrompt = useCallback(
+    (reason: string) => {
+      if (hasSampleShareDecision() || shareModalOpen || shareState === "uploading") return false;
+      setShareState("idle");
+      setShareError(null);
+      setShareModalOpen(true);
+      trackTool("tool_sample_share_prompt", {
+        media_type: kind || undefined,
+        hard_case: hardCase,
+        reason,
+      });
+      return true;
+    },
+    [shareModalOpen, shareState, kind, hardCase, trackTool],
+  );
+
+  const scheduleShareAfterAdjust = useCallback(() => {
+    if (hasSampleShareDecision() || shareModalOpen) return;
+    if (adjustShareTimerRef.current) clearTimeout(adjustShareTimerRef.current);
+    adjustShareTimerRef.current = setTimeout(() => {
+      adjustShareTimerRef.current = null;
+      offerSharePrompt("after_adjust");
+    }, 900);
+  }, [shareModalOpen, offerSharePrompt]);
+  scheduleShareAfterAdjustRef.current = scheduleShareAfterAdjust;
+
+  const dismissShareModal = useCallback(
+    (reason: string) => {
+      if (shareState === "uploading") return;
+      setShareModalOpen(false);
+      setShareState("idle");
+      setShareError(null);
+      markSampleShareDecision();
+      trackTool("tool_sample_share_dismiss", {
+        media_type: kind,
+        hard_case: hardCase,
+        reason,
+      });
+      if (pendingDownloadRef.current) {
+        pendingDownloadRef.current = false;
+        void downloadFnRef.current({ skipShareGate: true });
+      }
+    },
+    [shareState, kind, hardCase, trackTool],
+  );
+
+  useEffect(() => {
+    if (!shareModalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dismissShareModal("escape");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [shareModalOpen, dismissShareModal]);
+
+  const scrollToAdjust = useCallback((reason: string) => {
+    const el = adjustBlockRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    trackTool("tool_adjust_reveal", { reason, media_type: kind || undefined });
+  }, [kind, trackTool]);
+
+  // Mobile: after share dialog closes, bring Adjust into view once so sliders aren't missed.
+  useEffect(() => {
+    if (!ready || shareModalOpen || !mobileSaveUi || adjustHintShownRef.current) return;
+    adjustHintShownRef.current = true;
+    const timer = window.setTimeout(() => scrollToAdjust("auto_after_upload"), 380);
+    return () => window.clearTimeout(timer);
+  }, [ready, shareModalOpen, mobileSaveUi, scrollToAdjust]);
 
   useEffect(
     () => () => {
@@ -833,12 +937,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setBusy(true);
     setShowTip(false);
     setAutoTuned(false);
-    setShareConsent(true);
     setShareState("idle");
     setShareError(null);
-    setSharePromptHidden(false);
+    setShareModalOpen(false);
     setHardCase(false);
-    shareRevivedRef.current = false;
+    pendingDownloadRef.current = false;
+    skipShareGateRef.current = false;
+    if (adjustShareTimerRef.current) {
+      clearTimeout(adjustShareTimerRef.current);
+      adjustShareTimerRef.current = null;
+    }
+    adjustHintShownRef.current = false;
     stopLoop();
     clearObjectUrl();
     setReady(false);
@@ -1074,6 +1183,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             : undefined,
       });
       setShowTip(true);
+      setShareState("idle");
+      setShareError(null);
     } catch (e) {
       const issue =
         e && typeof e === "object" && "issue" in e
@@ -1109,11 +1220,6 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
   const shareSample = async () => {
     if (!ready || busy || shareState === "uploading" || shareState === "done") return;
-    if (!shareConsent) {
-      setShareError("Check the consent box first.");
-      setShareState("error");
-      return;
-    }
     const source = sourceCanvasRef.current;
     const video = videoRef.current;
     if (!source || !kind) return;
@@ -1155,7 +1261,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         return;
       }
       setShareState("done");
+      markSampleShareDecision();
       trackTool("tool_sample_share_success", { media_type: kind, hard_case: hardCase });
+      if (pendingDownloadRef.current) {
+        pendingDownloadRef.current = false;
+        void downloadFnRef.current({ skipShareGate: true });
+      }
     } catch {
       setShareState("error");
       setShareError("Could not prepare the sample from this frame.");
@@ -1163,9 +1274,16 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     }
   };
 
-  const download = async () => {
+  const download = async (opts?: { skipShareGate?: boolean }) => {
     const glCanvas = glCanvasRef.current;
     if (!glCanvas || !ready || busy) return;
+    if (!opts?.skipShareGate && !skipShareGateRef.current) {
+      if (offerSharePrompt("before_download")) {
+        pendingDownloadRef.current = true;
+        return;
+      }
+    }
+    skipShareGateRef.current = false;
     const stem = baseFileName(fileName);
     trackTool("tool_download_click", { media_type: kind || undefined });
     const elapsed =
@@ -1417,6 +1535,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       setBusy(false);
     }
   };
+  downloadFnRef.current = download;
 
   const downloadLabel = (() => {
     if (!ready) return "Download";
@@ -1496,8 +1615,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         </p>
         {ready && (
           <p className="tool-howto tool-howto-mobile">
-            Drag the vertical line to compare. Press and hold “Show original” to peek the full before
-            frame.
+            Scroll down to tweak the sliders. Drag the vertical line to compare, or hold “Show
+            original”.
           </p>
         )}
       </div>
@@ -1645,6 +1764,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       Hold · show original
                     </button>
                     <div className="preview-actions-end">
+                      <button
+                        type="button"
+                        className="preview-chip preview-chip-adjust copy-mobile"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          scrollToAdjust("preview_chip");
+                        }}
+                      >
+                        Adjust ↓
+                      </button>
                       {kind === "video" && (
                         <button
                           type="button"
@@ -1703,125 +1833,42 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <div className="engage-tip-copy">
                 {isRemove && autoTuned ? (
                   <>
-                    <strong>Auto-tuned:</strong> sliders were set from your file
-                    {kind === "video" ? " (multi-frame sample)" : ""}. Tweak if needed, or tap Re-analyze.
+                    <strong>Auto-tuned.</strong> Scroll to the sliders below to tweak, or use
+                    Stronger remove.
                   </>
                 ) : (
                   <>
-                    <strong>Next:</strong> tweak the sliders below
-                    {isRemove ? ", or tap Stronger remove" : ""}. Drag the preview line to compare.
+                    <strong>Next:</strong> use the sliders below to fine-tune
+                    {isRemove ? ", or tap Stronger remove" : ""}.
                   </>
                 )}
               </div>
-              <button type="button" className="engage-tip-dismiss" onClick={() => setShowTip(false)}>
+              <button
+                type="button"
+                className="engage-tip-dismiss copy-mobile"
+                onClick={() => {
+                  setShowTip(false);
+                  scrollToAdjust("engage_tip");
+                }}
+              >
+                Show sliders
+              </button>
+              <button type="button" className="engage-tip-dismiss copy-desktop" onClick={() => setShowTip(false)}>
                 Got it
               </button>
             </div>
           )}
 
-          {ready && !sharePromptHidden && (
-            <div
-              className={`sample-share ${hardCase && isRemove ? "is-hard" : ""}`}
-              role="region"
-              aria-label="Optional sample share"
-            >
-              {shareState === "done" ? (
-                <div className="sample-share-done">
-                  <span>Thanks — received. Used only to improve the tools.</span>
-                  <button
-                    type="button"
-                    className="engage-tip-dismiss"
-                    onClick={() => setSharePromptHidden(true)}
-                  >
-                    Close
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="sample-share-head">
-                    <strong>
-                      {isRemove
-                        ? hardCase
-                          ? "Tough matcha cast on this frame"
-                          : "Optional: help improve remove"
-                        : "Optional: help match the viral look"}
-                    </strong>
-                    <span>Compressed frame · no filename</span>
-                  </div>
-                  <label className="sample-share-consent">
-                    <input
-                      type="checkbox"
-                      checked={shareConsent}
-                      disabled={shareState === "uploading"}
-                      onChange={(e) => {
-                        setShareConsent(e.target.checked);
-                        if (shareState === "error") {
-                          setShareState("idle");
-                          setShareError(null);
-                        }
-                      }}
-                    />
-                    <span>
-                      <span className="sample-share-copy-long">
-                        {isRemove
-                          ? hardCase
-                            ? "Pre-checked for convenience — uncheck anytime. Cases like yours help tune the remover. Compressed frame only; default processing stays on-device. "
-                            : "Pre-checked for convenience — uncheck anytime. Share a compressed frame so we can review real matcha clips. Default processing stays on-device. "
-                          : "Pre-checked for convenience — uncheck anytime. Share a compressed frame of this look so we can refine Apply. Default processing stays on-device. "}
-                        <a href="/privacy">Privacy</a>
-                      </span>
-                      <span className="sample-share-copy-short">
-                        {isRemove
-                          ? hardCase
-                            ? "Pre-checked · tap Share to send this hard case. Uncheck to skip. "
-                            : "Pre-checked · tap Share to send a compressed frame. Uncheck to skip. "
-                          : "Pre-checked · tap Share to send this look. Uncheck to skip. "}
-                        <a href="/privacy">Privacy</a>
-                      </span>
-                    </span>
-                  </label>
-                  <div className="sample-share-actions">
-                    <button
-                      type="button"
-                      className="btn-secondary btn-compact"
-                      disabled={!shareConsent || shareState === "uploading"}
-                      onClick={() => void shareSample()}
-                    >
-                      {shareState === "uploading" ? "Sending…" : "Share sample"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost btn-compact"
-                      disabled={shareState === "uploading"}
-                      onClick={() => {
-                        setSharePromptHidden(true);
-                        trackTool("tool_sample_share_dismiss", {
-                          media_type: kind,
-                          hard_case: hardCase,
-                        });
-                      }}
-                    >
-                      Not now
-                    </button>
-                    {shareState === "error" && shareError && (
-                      <span className="sample-share-status is-bad">{shareError}</span>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
           {ready && (
-          <div className="control-block adjust-block">
+          <div ref={adjustBlockRef} id="adjust-controls" className="control-block adjust-block">
             <div className="control-block-head">
               <h2>1. Adjust effect</h2>
               <p>
                 {isRemove
                   ? autoTuned
-                    ? "Auto-analyzed starting point — adjust if needed."
-                    : "Reduce green cast and grain."
-                  : "Tune liquid matcha look."}
+                    ? "Drag the sliders — preview updates live."
+                    : "Drag the sliders to reduce green cast and grain."
+                  : "Drag the sliders to tune liquid matcha look."}
               </p>
             </div>
 
@@ -1907,21 +1954,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       preset: "stronger_remove",
                       media_type: kind || undefined,
                     });
-                    // One soft re-ask after they push harder — still dismissible, never blocks export.
-                    if (
-                      sharePromptHidden &&
-                      shareState !== "done" &&
-                      !shareRevivedRef.current
-                    ) {
-                      shareRevivedRef.current = true;
-                      setSharePromptHidden(false);
-                      setShareConsent(true);
-                      trackTool("tool_sample_share_revive", {
-                        media_type: kind || undefined,
-                        hard_case: hardCase,
-                        reason: "stronger_remove",
-                      });
-                    }
+                    scheduleShareAfterAdjust();
                   }}
                 >
                   Stronger remove preset
@@ -2062,7 +2095,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             <div className="action-row">
               {ready ? (
                 <>
-                  <button type="button" className="btn-primary" onClick={download} disabled={busy}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => void download()}
+                    disabled={busy}
+                  >
                     {downloadLabel}
                   </button>
                   <button
@@ -2113,7 +2151,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
       {ready && (
         <div className="mobile-export-dock" role="region" aria-label="Export actions">
-          <button type="button" className="btn-primary" onClick={download} disabled={busy}>
+          <button type="button" className="btn-primary" onClick={() => void download()} disabled={busy}>
             {downloadLabel}
           </button>
           <button
@@ -2130,6 +2168,61 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           <button type="button" className="btn-ghost" onClick={reset}>
             Reset
           </button>
+        </div>
+      )}
+
+      {shareModalOpen && (
+        <div
+          className="sample-share-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sample-share-title"
+        >
+          <button
+            type="button"
+            className="sample-share-modal-backdrop"
+            aria-label="Close"
+            disabled={shareState === "uploading"}
+            onClick={() => dismissShareModal("backdrop")}
+          />
+          <div className={`sample-share-modal-panel ${hardCase && isRemove ? "is-hard" : ""}`}>
+            {shareState === "done" ? (
+              <p className="sample-share-modal-done">Thanks — received.</p>
+            ) : (
+              <>
+                <div className="sample-share-modal-head">
+                  <h2 id="sample-share-title">Share a sample to improve remove?</h2>
+                </div>
+                <p className="sample-share-modal-body">
+                  Confirm uploads a compressed thumbnail (no filename). Cancel skips — nothing is
+                  sent. <a href="/privacy">Privacy</a>
+                </p>
+                {shareState === "error" && shareError && (
+                  <p className="sample-share-status is-bad" role="alert">
+                    {shareError}
+                  </p>
+                )}
+                <div className="sample-share-modal-actions">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={shareState === "uploading"}
+                    onClick={() => void shareSample()}
+                  >
+                    {shareState === "uploading" ? "Uploading…" : "Confirm & share"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={shareState === "uploading"}
+                    onClick={() => dismissShareModal("cancel")}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
