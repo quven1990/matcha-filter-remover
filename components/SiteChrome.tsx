@@ -41,7 +41,8 @@ export function SiteFooter() {
         <Link href="/cookie">Cookie</Link>
       </div>
       <p className="footer-note">
-        Independent tool. Not affiliated with TikTok or its trademarks.
+        Independent tool. Not affiliated with TikTok or its trademarks. Contact:{" "}
+        <a href="mailto:contact@matchafilter.online">contact@matchafilter.online</a>
       </p>
     </footer>
   );

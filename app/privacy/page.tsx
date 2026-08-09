@@ -39,9 +39,15 @@ export default function PrivacyPage() {
         . These services do not receive the media you process in the tools.
       </p>
       <h2>Contact</h2>
-      <h3>Email</h3>
+      <h3>Privacy requests</h3>
       <p>
-        Questions: <a href="mailto:hello@matchafilter.online">hello@matchafilter.online</a>
+        Privacy questions or data requests:{" "}
+        <a href="mailto:privacy@matchafilter.online">privacy@matchafilter.online</a>
+      </p>
+      <h3>General contact</h3>
+      <p>
+        Other questions:{" "}
+        <a href="mailto:contact@matchafilter.online">contact@matchafilter.online</a>
       </p>
       <h2>Children</h2>
       <h3>Age restriction</h3>

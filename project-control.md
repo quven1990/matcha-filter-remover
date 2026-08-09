@@ -19,7 +19,7 @@
 - [ ] DNS / Cloudflare 接入
 - [ ] GitHub remote / 允许 push
 - [ ] 确认生产部署到 `matchafilter.online`
-- [ ] 联系邮箱是否用 `hello@matchafilter.online`
+- [x] 联系邮箱：`contact@` / 隐私：`privacy@matchafilter.online`
 
 ## 3. 流水线状态
 

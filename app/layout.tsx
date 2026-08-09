@@ -66,8 +66,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         name: "Matcha Filter",
         url: "https://matchafilter.online",
         logo: "https://matchafilter.online/icon-512.png",
+        email: "contact@matchafilter.online",
         description:
           "Private browser toolkit to apply or reduce the viral matcha green look on-device.",
+        contactPoint: [
+          {
+            "@type": "ContactPoint",
+            email: "contact@matchafilter.online",
+            contactType: "customer support",
+          },
+          {
+            "@type": "ContactPoint",
+            email: "privacy@matchafilter.online",
+            contactType: "privacy inquiries",
+          },
+        ],
       },
       {
         "@type": "WebSite",

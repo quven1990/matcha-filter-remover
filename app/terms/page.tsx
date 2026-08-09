@@ -35,7 +35,8 @@ export default function TermsPage() {
       <h2>Contact</h2>
       <h3>Email</h3>
       <p>
-        <a href="mailto:hello@matchafilter.online">hello@matchafilter.online</a>
+        Questions about these terms:{" "}
+        <a href="mailto:contact@matchafilter.online">contact@matchafilter.online</a>
       </p>
     </article>
   );

@@ -24,6 +24,13 @@ export default function CookiePage() {
       <h2>Your choices</h2>
       <h3>Browser controls</h3>
       <p>You can block or clear cookies through your browser settings.</p>
+
+      <h2>Contact</h2>
+      <h3>Email</h3>
+      <p>
+        Cookie or privacy questions:{" "}
+        <a href="mailto:privacy@matchafilter.online">privacy@matchafilter.online</a>
+      </p>
     </article>
   );
 }
