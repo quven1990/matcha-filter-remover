@@ -628,5 +628,49 @@ export function analyzeFrame(
   };
 }
 
+/** Merge multi-frame samples (video) into one recommended control set. */
+export function mergeAnalyzeResults(results: AnalyzeResult[]): AnalyzeResult {
+  if (results.length === 0) {
+    return {
+      neutralize: 82,
+      denoise: 55,
+      detail: 48,
+      balance: [1.08, 0.86, 1.12],
+      toneRange: [0, 1],
+      analysisMix: 0.72,
+      greenCast: 0.12,
+      yellowCast: 0.06,
+      noise: 0.22,
+    };
+  }
+  if (results.length === 1) return results[0];
+
+  const n = results.length;
+  const avg = (pick: (r: AnalyzeResult) => number) => results.reduce((sum, r) => sum + pick(r), 0) / n;
+  // Stronger casts win — better to over-correct slightly than leave green frames
+  const neutralize = Math.round(Math.max(...results.map((r) => r.neutralize)));
+  const denoise = Math.round(Math.max(...results.map((r) => r.denoise)));
+  const detail = Math.round(avg((r) => r.detail));
+  const balance: [number, number, number] = [
+    clamp01(avg((r) => r.balance[0]), 0.75, 1.35),
+    clamp01(avg((r) => r.balance[1]), 0.7, 1.15),
+    clamp01(avg((r) => r.balance[2]), 0.75, 1.4),
+  ];
+  const toneLow = Math.min(...results.map((r) => r.toneRange[0]));
+  const toneHigh = Math.max(...results.map((r) => r.toneRange[1]));
+
+  return {
+    neutralize,
+    denoise,
+    detail,
+    balance,
+    toneRange: toneHigh - toneLow >= 0.3 ? [toneLow, toneHigh] : [0, 1],
+    analysisMix: clamp01(avg((r) => r.analysisMix), 0.5, 0.98),
+    greenCast: avg((r) => r.greenCast),
+    yellowCast: avg((r) => r.yellowCast),
+    noise: avg((r) => r.noise),
+  };
+}
+
 export const MAX_IMAGE_MB = 20;
 export const MAX_VIDEO_SECONDS = 30;

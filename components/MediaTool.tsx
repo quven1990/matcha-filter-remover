@@ -13,6 +13,7 @@ import {
   MAX_VIDEO_SECONDS,
   MatchaGL,
   analyzeFrame,
+  mergeAnalyzeResults,
   type AnalyzeResult,
   type ProcessMode,
 } from "@/lib/webgl-matcha";
@@ -128,17 +129,97 @@ function sleep(ms: number) {
   });
 }
 
-function pickVideoExport(preferredExt: string): { mime: string; ext: string } | null {
-  const wantMp4 = preferredExt === "mp4" || preferredExt === "mov";
-  const mp4 = ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=h264", "video/mp4"];
-  const webm = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
-  const order = wantMp4 ? [...mp4, ...webm] : preferredExt === "webm" ? [...webm, ...mp4] : [...webm, ...mp4];
-  for (const mime of order) {
-    if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(mime)) {
+function seekVideo(video: HTMLVideoElement, time: number) {
+  return new Promise<void>((resolve, reject) => {
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    const target = Math.min(Math.max(0, time), Math.max(0, duration > 0 ? duration - 0.04 : 0));
+    if (Math.abs(video.currentTime - target) < 0.02) {
+      resolve();
+      return;
+    }
+    const onSeeked = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("seek failed"));
+    };
+    const cleanup = () => {
+      video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("error", onError);
+    };
+    video.addEventListener("seeked", onSeeked);
+    video.addEventListener("error", onError);
+    try {
+      video.currentTime = target;
+    } catch {
+      cleanup();
+      reject(new Error("seek failed"));
+    }
+  });
+}
+
+type VideoExportPick = { mime: string; ext: "mp4" | "webm" };
+
+/** Prefer MP4 (mobile/Photos-friendly); fall back to WebM. Include AAC/Opus when audio is present. */
+function pickVideoExport(hasAudio: boolean): VideoExportPick | null {
+  if (typeof MediaRecorder === "undefined") return null;
+  const mp4 = hasAudio
+    ? [
+        "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+        "video/mp4;codecs=avc1.4D401E,mp4a.40.2",
+        "video/mp4;codecs=h264,aac",
+        "video/mp4;codecs=avc1.42E01E",
+        "video/mp4",
+      ]
+    : ["video/mp4;codecs=avc1.42E01E", "video/mp4;codecs=h264", "video/mp4"];
+  const webm = hasAudio
+    ? [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm",
+      ]
+    : ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+
+  for (const mime of [...mp4, ...webm]) {
+    if (MediaRecorder.isTypeSupported(mime)) {
       return { mime, ext: mime.includes("mp4") ? "mp4" : "webm" };
     }
   }
   return null;
+}
+
+function mediaElementCaptureStream(video: HTMLVideoElement): MediaStream | null {
+  const el = video as HTMLVideoElement & {
+    captureStream?: (frameRate?: number) => MediaStream;
+    mozCaptureStream?: (frameRate?: number) => MediaStream;
+  };
+  try {
+    if (typeof el.captureStream === "function") return el.captureStream();
+    if (typeof el.mozCaptureStream === "function") return el.mozCaptureStream();
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/** Canvas video + source audio tracks when the browser allows it. */
+function buildExportStream(canvas: HTMLCanvasElement, video: HTMLVideoElement, fps = 30) {
+  const canvasStream = canvas.captureStream(fps);
+  const combined = new MediaStream(canvasStream.getVideoTracks());
+  let hasAudio = false;
+  const mediaStream = mediaElementCaptureStream(video);
+  if (mediaStream) {
+    for (const track of mediaStream.getAudioTracks()) {
+      if (track.readyState === "ended") continue;
+      combined.addTrack(track);
+      hasAudio = true;
+    }
+  }
+  return { stream: combined, hasAudio, mediaStream };
 }
 
 type SaveSheetState = {
@@ -226,6 +307,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [showTip, setShowTip] = useState(false);
   const [saveSheet, setSaveSheet] = useState<SaveSheetState | null>(null);
   const [mobileSaveUi, setMobileSaveUi] = useState(false);
+  const [autoTuned, setAutoTuned] = useState(false);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -350,6 +432,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setFileName("");
     setSourceExt("");
     setReady(false);
+    setBusy(false);
     setError(null);
     setCompare(50);
     setPeekOriginal(false);
@@ -357,10 +440,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setVideoTime(0);
     setVideoDuration(0);
     setShowTip(false);
+    setAutoTuned(false);
     clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
     glRef.current?.resetTemporal();
+    if (inputRef.current) inputRef.current.value = "";
     const v = videoRef.current;
     if (v) {
       v.pause();
@@ -563,21 +648,135 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     return `${Math.floor(sec / 60)}:${s}`;
   };
 
-  const runAnalyze = (source: HTMLCanvasElement): AnalyzeResult | null => {
-    const ctx = source.getContext("2d", { willReadFrequently: true });
-    if (!ctx || !source.width) return null;
-    const result = analyzeFrame(ctx, source.width, source.height);
-    const nextAnalysis = {
-      balance: result.balance,
-      toneRange: result.toneRange,
-      analysisMix: result.analysisMix,
-    };
-    setAnalysis(nextAnalysis);
-    setNeutralize(result.neutralize);
-    setDenoise(result.denoise);
-    setDetail(result.detail);
-    return result;
-  };
+  const applyAnalyzeResult = useCallback(
+    (result: AnalyzeResult, mediaKind: Kind) => {
+      const nextAnalysis = {
+        balance: result.balance,
+        toneRange: result.toneRange,
+        analysisMix: result.analysisMix,
+      };
+      setAnalysis(nextAnalysis);
+      setNeutralize(result.neutralize);
+      setDenoise(result.denoise);
+      setDetail(result.detail);
+      setAutoTuned(true);
+      paramsRef.current = {
+        ...paramsRef.current,
+        neutralize: result.neutralize,
+        denoise: result.denoise,
+        detail: result.detail,
+        analysis: nextAnalysis,
+        kind: mediaKind,
+      };
+      return result;
+    },
+    [],
+  );
+
+  const runAnalyze = useCallback(
+    (source: HTMLCanvasElement, mediaKind: Kind = kind): AnalyzeResult | null => {
+      const ctx = source.getContext("2d", { willReadFrequently: true });
+      if (!ctx || !source.width) return null;
+      return applyAnalyzeResult(analyzeFrame(ctx, source.width, source.height), mediaKind);
+    },
+    [applyAnalyzeResult, kind],
+  );
+
+  const analyzeRemoveVideo = useCallback(
+    async (video: HTMLVideoElement, source: HTMLCanvasElement) => {
+      const ctx = source.getContext("2d", { willReadFrequently: true });
+      if (!ctx || !source.width) return null;
+      const wasPaused = video.paused;
+      video.pause();
+      const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+      const sampleCount = duration >= 8 ? 5 : duration >= 3 ? 3 : 1;
+      const samples: AnalyzeResult[] = [];
+      for (let i = 0; i < sampleCount; i++) {
+        const t = sampleCount === 1 ? Math.min(0.12, Math.max(0, duration * 0.1)) : (duration * (i + 0.5)) / sampleCount;
+        try {
+          await seekVideo(video, t);
+        } catch {
+          continue;
+        }
+        ctx.drawImage(video, 0, 0, source.width, source.height);
+        samples.push(analyzeFrame(ctx, source.width, source.height));
+        await runStage(
+          `Auto-analyzing frame ${i + 1}/${sampleCount}…`,
+          42 + Math.round(((i + 1) / sampleCount) * 18),
+          180,
+        );
+      }
+      if (!samples.length) {
+        ctx.drawImage(video, 0, 0, source.width, source.height);
+        return applyAnalyzeResult(analyzeFrame(ctx, source.width, source.height), "video");
+      }
+      const merged = applyAnalyzeResult(mergeAnalyzeResults(samples), "video");
+      try {
+        await seekVideo(video, 0);
+      } catch {
+        /* keep current */
+      }
+      if (!wasPaused) {
+        await video.play().catch(() => undefined);
+      }
+      trackTool("tool_auto_analyze", {
+        media_type: "video",
+        sample_count: samples.length,
+        neutralize: merged.neutralize,
+        denoise: merged.denoise,
+        detail: merged.detail,
+      });
+      return merged;
+    },
+    [applyAnalyzeResult, runStage, trackTool],
+  );
+
+  const reAnalyze = useCallback(async () => {
+    if (!ready || busy || !isRemove) return;
+    const source = sourceCanvasRef.current;
+    if (!source) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await runStage("Re-analyzing…", 35, 280);
+      if (kind === "video") {
+        const video = videoRef.current;
+        if (!video) return;
+        stopLoop();
+        await analyzeRemoveVideo(video, source);
+        setPreviewPaused(false);
+        video.loop = true;
+        await video.play().catch(() => undefined);
+        startLoop();
+      } else {
+        const analyzed = runAnalyze(source, "image");
+        if (analyzed) {
+          trackTool("tool_auto_analyze", {
+            media_type: "image",
+            sample_count: 1,
+            neutralize: analyzed.neutralize,
+            denoise: analyzed.denoise,
+            detail: analyzed.detail,
+          });
+        }
+      }
+      await runStage("Updated controls…", 90, 220);
+    } finally {
+      clearStatus();
+      setBusy(false);
+    }
+  }, [
+    analyzeRemoveVideo,
+    busy,
+    clearStatus,
+    isRemove,
+    kind,
+    ready,
+    runAnalyze,
+    runStage,
+    startLoop,
+    trackTool,
+  ]);
 
   const fail = (issue: UploadIssue, category: "reject" | "fail" = "fail") => {
     clearObjectUrl();
@@ -590,6 +789,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setVideoTime(0);
     setVideoDuration(0);
     setShowTip(false);
+    setAutoTuned(false);
     clearStatus();
     uploadReadyAtRef.current = null;
     if (inputRef.current) inputRef.current.value = "";
@@ -603,6 +803,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setError(null);
     setBusy(true);
     setShowTip(false);
+    setAutoTuned(false);
     stopLoop();
     clearObjectUrl();
     setReady(false);
@@ -706,20 +907,15 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           620,
         );
         if (isRemove) {
-          const analyzed = runAnalyze(source);
+          const analyzed = runAnalyze(source, "image");
           if (analyzed) {
-            paramsRef.current = {
-              ...paramsRef.current,
+            trackTool("tool_auto_analyze", {
+              media_type: "image",
+              sample_count: 1,
               neutralize: analyzed.neutralize,
               denoise: analyzed.denoise,
               detail: analyzed.detail,
-              analysis: {
-                balance: analyzed.balance,
-                toneRange: analyzed.toneRange,
-                analysisMix: analyzed.analysisMix,
-              },
-              kind: "image",
-            };
+            });
           }
         }
         await runStage(
@@ -795,27 +991,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         await runStage(
           isRemove ? "Analyzing green cast…" : "Building matcha look…",
           42,
-          620,
+          420,
         );
-        if (ctx) {
+        if (isRemove) {
+          await analyzeRemoveVideo(video, source);
+        } else if (ctx) {
           ctx.drawImage(video, 0, 0, source.width, source.height);
-          if (isRemove) {
-            const analyzed = runAnalyze(source);
-            if (analyzed) {
-              paramsRef.current = {
-                ...paramsRef.current,
-                neutralize: analyzed.neutralize,
-                denoise: analyzed.denoise,
-                detail: analyzed.detail,
-                analysis: {
-                  balance: analyzed.balance,
-                  toneRange: analyzed.toneRange,
-                  analysisMix: analyzed.analysisMix,
-                },
-                kind: "video",
-              };
-            }
-          }
         }
         await runStage(
           isRemove ? "Neutralizing & cleaning…" : "Adding liquid grain…",
@@ -969,8 +1150,25 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       stopLoop();
       gl.resetTemporal();
 
-      const picked = pickVideoExport(sourceExt || "webm");
+      const previousMuted = video.muted;
+      const previousVolume = video.volume;
+      // Unmute so captureStream can include audio (muted often yields silent tracks).
+      video.muted = false;
+      if (video.volume <= 0) video.volume = 0.85;
+
+      const { stream, hasAudio, mediaStream } = buildExportStream(glCanvas, video, 30);
+      let picked = pickVideoExport(hasAudio);
+      if (!picked && hasAudio) {
+        // Retry video-only MIME list if audio-tagged codecs are unsupported
+        for (const track of stream.getAudioTracks()) stream.removeTrack(track);
+        picked = pickVideoExport(false);
+      }
       if (!picked) {
+        video.muted = previousMuted;
+        video.volume = previousVolume;
+        mediaStream?.getTracks().forEach((t) => {
+          if (t.kind === "audio") t.stop();
+        });
         setError({
           title: "Video export not supported here",
           detail: "This browser cannot record canvas video. Try Chrome/Edge, or download a photo as JPG/PNG instead.",
@@ -979,16 +1177,28 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         trackTool("tool_download_fail", { media_type: "video", reason: "no_recorder" });
         return;
       }
-      await runStage("Rendering frames…", 40, 500);
 
-      const stream = glCanvas.captureStream(30);
-      const recorder = new MediaRecorder(stream, { mimeType: picked.mime });
+      const exportHasAudio = stream.getAudioTracks().length > 0;
+      await runStage(
+        exportHasAudio ? "Rendering frames with audio…" : "Rendering frames…",
+        40,
+        500,
+      );
+
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, { mimeType: picked.mime });
+      } catch {
+        recorder = new MediaRecorder(stream);
+        picked = { mime: "", ext: picked.ext };
+      }
       const chunks: BlobPart[] = [];
       recorder.ondataavailable = (ev) => {
         if (ev.data.size) chunks.push(ev.data);
       };
       const done = new Promise<Blob>((resolve) => {
-        recorder.onstop = () => resolve(new Blob(chunks, { type: picked.mime.split(";")[0] }));
+        recorder.onstop = () =>
+          resolve(new Blob(chunks, { type: (picked.mime || "video/webm").split(";")[0] }));
       });
 
       const ctx = source.getContext("2d", { willReadFrequently: true });
@@ -1033,7 +1243,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       recorder.stop();
       video.pause();
       const blob = await done;
-      const exportMime = picked.mime.split(";")[0] || "video/webm";
+
+      video.muted = previousMuted;
+      video.volume = previousVolume;
+      mediaStream?.getTracks().forEach((t) => {
+        if (t.kind === "audio") t.stop();
+      });
+
+      const exportMime = (picked.mime || blob.type || "video/webm").split(";")[0];
       const exportName = `${mode}-matcha-${stem}.${picked.ext}`;
       const useSaveSheet = prefersMobileSave();
       await runStage("Encoding file…", 78, useSaveSheet ? 320 : 520);
@@ -1058,6 +1275,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           format_preserved: picked.ext === sourceExt || (sourceExt === "mov" && picked.ext === "mp4"),
           elapsed_ms_bucket: elapsed,
           save_method: "mobile_sheet",
+          has_audio: exportHasAudio,
         });
       } else {
         await runStage("Starting download…", 95, 380);
@@ -1072,13 +1290,21 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           format_preserved: picked.ext === sourceExt || (sourceExt === "mov" && picked.ext === "mp4"),
           elapsed_ms_bucket: elapsed,
           save_method: "file_download",
+          has_audio: exportHasAudio,
         });
 
-        if ((sourceExt === "mp4" || sourceExt === "mov") && picked.ext === "webm") {
+        if (picked.ext === "webm" && (sourceExt === "mp4" || sourceExt === "mov")) {
           setError({
             title: "Saved as WebM (browser limit)",
-            detail:
-              "This browser cannot record MP4 from canvas, so the download is WebM. Convert to MP4 in any editor if needed.",
+            detail: exportHasAudio
+              ? "This browser cannot record MP4 from canvas, so the download is WebM (with audio when possible). Convert to MP4 in any editor if needed."
+              : "This browser cannot record MP4 from canvas, so the download is WebM. Convert to MP4 in any editor if needed.",
+            tone: "info",
+          });
+        } else if (!exportHasAudio) {
+          setError({
+            title: "Exported without audio",
+            detail: "This browser could not capture the video’s audio track into the recording. Picture frames are still included.",
             tone: "info",
           });
         }
@@ -1107,8 +1333,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       const fmt = pickImageExport(sourceExt || "png");
       return mobileSaveUi ? `Save ${fmt.ext.toUpperCase()}` : `Download ${fmt.ext.toUpperCase()}`;
     }
-    const prefer = sourceExt === "mov" ? "MP4" : (sourceExt || "video").toUpperCase();
-    return mobileSaveUi ? `Save ${prefer}` : `Download ${prefer}`;
+    return mobileSaveUi ? "Save video" : "Download video";
   })();
 
   const shareSaveSheet = async () => {
@@ -1148,7 +1373,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           : "Download the file, or open it in a player that supports WebM. iPhone Photos usually needs MP4.";
       }
       return saveSheet.canShare
-        ? "Tap Share, then Save Video / Save to Files. Preview plays below."
+        ? "Tap Share, then Save Video / Save to Files. Preview plays below (audio included when this browser allowed it)."
         : "Download the file, then open it from Files to save to Photos if your phone allows.";
     }
     return saveSheet.canShare
@@ -1382,8 +1607,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           {ready && showTip && (
             <div className="engage-tip" role="status">
               <div className="engage-tip-copy">
-                <strong>Next:</strong> tweak the sliders below
-                {isRemove ? ", or tap Stronger remove" : ""}. Drag the preview line to compare.
+                {isRemove && autoTuned ? (
+                  <>
+                    <strong>Auto-tuned:</strong> sliders were set from your file
+                    {kind === "video" ? " (multi-frame sample)" : ""}. Tweak if needed, or tap Re-analyze.
+                  </>
+                ) : (
+                  <>
+                    <strong>Next:</strong> tweak the sliders below
+                    {isRemove ? ", or tap Stronger remove" : ""}. Drag the preview line to compare.
+                  </>
+                )}
               </div>
               <button type="button" className="engage-tip-dismiss" onClick={() => setShowTip(false)}>
                 Got it
@@ -1394,11 +1628,32 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           <div className="control-block adjust-block">
             <div className="control-block-head">
               <h2>1. Adjust effect</h2>
-              <p>{isRemove ? "Reduce green cast and grain." : "Tune liquid matcha look."}</p>
+              <p>
+                {isRemove
+                  ? autoTuned
+                    ? "Auto-analyzed starting point — adjust if needed."
+                    : "Reduce green cast and grain."
+                  : "Tune liquid matcha look."}
+              </p>
             </div>
 
             {isRemove ? (
               <div className="control-stack">
+                <div className="auto-tune-row">
+                  {autoTuned ? (
+                    <span className="auto-tune-badge">Auto-tuned</span>
+                  ) : (
+                    <span className="auto-tune-badge is-manual">Manual</span>
+                  )}
+                  <button
+                    type="button"
+                    className="btn-ghost btn-compact"
+                    disabled={!ready || busy}
+                    onClick={() => void reAnalyze()}
+                  >
+                    Re-analyze
+                  </button>
+                </div>
                 <label className="control">
                   <span>
                     Color neutralize <em>{neutralize}</em>
@@ -1411,6 +1666,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       setNeutralize(v);
+                      setAutoTuned(false);
                       noteParam("neutralize", v);
                     }}
                   />
@@ -1427,6 +1683,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       setDenoise(v);
+                      setAutoTuned(false);
                       noteParam("denoise", v);
                     }}
                   />
@@ -1443,6 +1700,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       setDetail(v);
+                      setAutoTuned(false);
                       noteParam("detail", v);
                     }}
                   />
@@ -1456,6 +1714,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     setDenoise(62);
                     setDetail(48);
                     setCompare(50);
+                    setAutoTuned(false);
                     trackTool("tool_preset_click", {
                       preset: "stronger_remove",
                       media_type: kind || undefined,
