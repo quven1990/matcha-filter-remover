@@ -1634,9 +1634,13 @@ a {
     min-height: 2.85rem;
   }
 
-  .hero-compare-hint {
-    font-size: 0.8rem;
-    line-height: 1.4;
+  .hero-compare-tag {
+    font-size: 0.62rem;
+    padding: 0.24rem 0.45rem;
+    max-width: 42%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .compare-hint-desktop {

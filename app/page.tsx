@@ -20,11 +20,11 @@ export default function HomePage() {
           <span className="hero-grain" />
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">On-device · Private</p>
+          <p className="eyebrow">Matcha filter remover · On-device</p>
           <h1 className="display brand-display">Matcha Filter</h1>
           <p className="lead">
-            Too green? Upload a photo or short clip and dial the matcha cast back —
-            right in your browser.
+            Saved a viral liquid-green matcha clip? Reduce the cast in your browser —
+            free, private, best-effort.
           </p>
           <div className="cta-row">
             <Link href="/remove" className="btn-primary btn-primary-lg">
@@ -37,8 +37,8 @@ export default function HomePage() {
           <p className="hero-trust">Free · No account · Media stays on your device</p>
         </div>
         <HeroCompare
-          beforeSrc="/demo/with-filter.webp"
-          afterSrc="/demo/filter-removed.webp"
+          beforeSrc="/demo/with-filter.webp?v=liquid3"
+          afterSrc="/demo/filter-removed.webp?v=liquid3"
           href="/remove"
         />
       </section>

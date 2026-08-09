@@ -15,7 +15,7 @@ export function HeroCompare({
   href = "/remove",
 }: Props) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [split, setSplit] = useState(52);
+  const [split, setSplit] = useState(48);
   const dragging = useRef(false);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function HeroCompare({
         <img
           className="hero-compare-img hero-compare-after"
           src={afterSrc}
-          alt="Same frame after green cast is reduced (best-effort)"
+          alt="Clean source photo without the viral matcha look"
           width={960}
           height={1200}
           decoding="async"
@@ -77,15 +77,15 @@ export function HeroCompare({
         <div className="hero-compare-handle" aria-hidden>
           <span className="hero-compare-knob" />
         </div>
-        <span className="hero-compare-tag hero-compare-tag-before">With cast</span>
-        <span className="hero-compare-tag hero-compare-tag-after">Cast reduced</span>
+        <span className="hero-compare-tag hero-compare-tag-before">Viral matcha look</span>
+        <span className="hero-compare-tag hero-compare-tag-after">Clean source</span>
       </div>
       <p className="hero-compare-hint">
         <span className="hero-compare-hint-long">
-          Drag to compare · best-effort, not a perfect restore ·{" "}
+          Applied look vs clean source · remover reduces cast, not a perfect restore ·{" "}
         </span>
-        <span className="hero-compare-hint-short">Drag to compare · </span>
-        <Link href={href}>Try it on your photo</Link>
+        <span className="hero-compare-hint-short">Best-effort remover · </span>
+        <Link href={href}>Remove matcha filter</Link>
       </p>
     </div>
   );
