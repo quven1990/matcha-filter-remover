@@ -165,6 +165,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const sourceCanvasRef = useRef<HTMLCanvasElement>(null);
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const compareWrapRef = useRef<HTMLDivElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const glRef = useRef<MatchaGL | null>(null);
@@ -172,6 +173,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const uploadReadyAtRef = useRef<number | null>(null);
   const compareSeenRef = useRef(new Set<string>());
   const paramTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draggingCompareRef = useRef(false);
+  const [draggingCompare, setDraggingCompare] = useState(false);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -434,6 +437,42 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       setPreviewPaused(true);
     }
     requestAnimationFrame(() => drawFrame());
+  };
+
+  const setCompareFromClientX = (clientX: number) => {
+    const el = compareWrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    setCompare(Math.max(0, Math.min(100, pct)));
+  };
+
+  const onComparePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!ready || peekOriginal) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("button, .preview-actions")) return;
+    draggingCompareRef.current = true;
+    setDraggingCompare(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setCompareFromClientX(e.clientX);
+    noteCompare("split");
+  };
+
+  const onComparePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingCompareRef.current) return;
+    setCompareFromClientX(e.clientX);
+  };
+
+  const endCompareDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingCompareRef.current) return;
+    draggingCompareRef.current = false;
+    setDraggingCompare(false);
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
   };
 
   const formatClock = (sec: number) => {
@@ -910,10 +949,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         <p className="eyebrow">{isRemove ? "Remove workspace" : "Apply workspace"} · On-device · No upload</p>
         <h1 className="display mt-2">{title}</h1>
         <p className="lead mt-3">{subtitle}</p>
-        <p className="tool-howto">
+        <p className="tool-howto tool-howto-desktop">
           {isRemove
             ? "Left = your upload still with the green matcha look. Right = after we reduce that cast. Drag the split, or hold “Show original” to flash the full left-side frame."
             : "Left = your original upload. Right = with the matcha look applied. Drag the split, or hold “Show original” to flash the untouched frame."}
+        </p>
+        <p className="tool-howto tool-howto-mobile">
+          Drag the vertical line to compare. Press and hold “Show original” to peek the full before frame.
         </p>
       </div>
 
@@ -962,10 +1004,20 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       ? "Drop to upload"
                       : error
                         ? "Try another file"
-                        : "Drop a photo or short video"}
+                        : (
+                          <>
+                            <span className="copy-mobile">Tap to choose a photo or video</span>
+                            <span className="copy-desktop">Drop a photo or short video</span>
+                          </>
+                        )}
                 </span>
                 <span className="dropzone-sub">
-                  JPG, PNG, WebP, MP4, WebM, MOV · max {MAX_IMAGE_MB}MB · video ≤ {MAX_VIDEO_SECONDS}s
+                  <span className="copy-mobile">
+                    JPG, PNG, WebP, MP4, WebM, MOV · under {MAX_IMAGE_MB}MB · video ≤ {MAX_VIDEO_SECONDS}s
+                  </span>
+                  <span className="copy-desktop">
+                    JPG, PNG, WebP, MP4, WebM, MOV · max {MAX_IMAGE_MB}MB · video ≤ {MAX_VIDEO_SECONDS}s
+                  </span>
                 </span>
                 {error && (
                   <div
@@ -979,7 +1031,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               </button>
             )}
 
-            <div className={`compare-wrap ${ready ? "" : "sr-only"}`}>
+            <div
+              ref={compareWrapRef}
+              className={`compare-wrap ${ready ? "" : "sr-only"} ${draggingCompare ? "is-dragging" : ""}`}
+              onPointerDown={onComparePointerDown}
+              onPointerMove={onComparePointerMove}
+              onPointerUp={endCompareDrag}
+              onPointerCancel={endCompareDrag}
+            >
               <canvas ref={sourceCanvasRef} className="preview-canvas" />
               <canvas
                 ref={glCanvasRef}
@@ -1013,19 +1072,22 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   )}
                   {peekOriginal && (
                     <div className="compare-label compare-label-before compare-label-full">
-                      Full original · release to return
+                      <span className="copy-mobile">Release to return</span>
+                      <span className="copy-desktop">Full original · release to return</span>
                     </div>
                   )}
                   <div className="preview-actions">
                     <button
                       type="button"
                       className={`preview-chip ${peekOriginal ? "is-active" : ""}`}
-                      onPointerDown={() => {
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        e.currentTarget.setPointerCapture(e.pointerId);
                         setPeekOriginal(true);
                         noteCompare("peek_original");
                       }}
                       onPointerUp={() => setPeekOriginal(false)}
-                      onPointerLeave={() => setPeekOriginal(false)}
+                      onLostPointerCapture={() => setPeekOriginal(false)}
                       onPointerCancel={() => setPeekOriginal(false)}
                     >
                       Hold · show original
@@ -1034,6 +1096,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       <button
                         type="button"
                         className="preview-chip"
+                        onPointerDown={(e) => e.stopPropagation()}
                         onClick={togglePreviewPlayback}
                         aria-label={previewPaused ? "Play preview" : "Pause preview"}
                       >
@@ -1061,9 +1124,16 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
           {ready && (
             <p className="compare-hint">
-              <strong>How to compare:</strong> left = {isRemove ? "with filter" : "original"}, right ={" "}
-              {isRemove ? "filter removed" : "matcha applied"}. Drag “Compare split”, or press and hold
-              “Hold · show original”.
+              <strong>How to compare:</strong>{" "}
+              <span className="copy-mobile">
+                drag the line on the preview · left = {isRemove ? "with filter" : "original"}, right ={" "}
+                {isRemove ? "removed" : "applied"}
+              </span>
+              <span className="copy-desktop">
+                left = {isRemove ? "with filter" : "original"}, right ={" "}
+                {isRemove ? "filter removed" : "matcha applied"}. Drag the preview split, or press and hold
+                “Hold · show original”.
+              </span>
             </p>
           )}
         </div>
@@ -1253,13 +1323,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 </label>
                 <button
                   type="button"
-                  className={`btn-secondary btn-compact ${peekOriginal ? "is-pressed" : ""}`}
-                  onPointerDown={() => {
+                  className={`btn-secondary btn-compact hold-original-desktop ${peekOriginal ? "is-pressed" : ""}`}
+                  onPointerDown={(e) => {
+                    e.currentTarget.setPointerCapture(e.pointerId);
                     setPeekOriginal(true);
                     noteCompare("peek_original");
                   }}
                   onPointerUp={() => setPeekOriginal(false)}
-                  onPointerLeave={() => setPeekOriginal(false)}
+                  onLostPointerCapture={() => setPeekOriginal(false)}
                   onPointerCancel={() => setPeekOriginal(false)}
                 >
                   Hold to show original
@@ -1268,7 +1339,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             </div>
           )}
 
-          <div className="control-block">
+          <div className={`control-block export-block ${ready ? "is-ready" : ""}`}>
             <div className="control-block-head">
               <h2>{ready ? "3. Export" : "2. Export"}</h2>
               <p>{ready ? "Download keeps your source format when possible." : "Upload first, then export."}</p>
