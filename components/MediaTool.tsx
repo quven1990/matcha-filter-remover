@@ -311,7 +311,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [saveSheet, setSaveSheet] = useState<SaveSheetState | null>(null);
   const [mobileSaveUi, setMobileSaveUi] = useState(false);
   const [autoTuned, setAutoTuned] = useState(false);
-  const [shareConsent, setShareConsent] = useState(false);
+  const [shareConsent, setShareConsent] = useState(true);
   const [shareState, setShareState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [shareError, setShareError] = useState<string | null>(null);
   const [sharePromptHidden, setSharePromptHidden] = useState(false);
@@ -455,7 +455,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setVideoDuration(0);
     setShowTip(false);
     setAutoTuned(false);
-    setShareConsent(false);
+    setShareConsent(true);
     setShareState("idle");
     setShareError(null);
     setSharePromptHidden(false);
@@ -833,7 +833,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setBusy(true);
     setShowTip(false);
     setAutoTuned(false);
-    setShareConsent(false);
+    setShareConsent(true);
     setShareState("idle");
     setShareError(null);
     setSharePromptHidden(false);
@@ -1765,17 +1765,17 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       <span className="sample-share-copy-long">
                         {isRemove
                           ? hardCase
-                            ? "Cases like yours are how we tune the remover. Share a compressed frame — default processing still stays on-device. "
-                            : "Share a compressed frame so we can review real matcha clips. Default processing still stays on-device. "
-                          : "Share a compressed frame of this look so we can refine Apply. Default processing still stays on-device. "}
+                            ? "Pre-checked for convenience — uncheck anytime. Cases like yours help tune the remover. Compressed frame only; default processing stays on-device. "
+                            : "Pre-checked for convenience — uncheck anytime. Share a compressed frame so we can review real matcha clips. Default processing stays on-device. "
+                          : "Pre-checked for convenience — uncheck anytime. Share a compressed frame of this look so we can refine Apply. Default processing stays on-device. "}
                         <a href="/privacy">Privacy</a>
                       </span>
                       <span className="sample-share-copy-short">
                         {isRemove
                           ? hardCase
-                            ? "Share this hard case to improve remove. "
-                            : "Share a compressed frame to improve remove. "
-                          : "Share this look to improve Apply. "}
+                            ? "Pre-checked · tap Share to send this hard case. Uncheck to skip. "
+                            : "Pre-checked · tap Share to send a compressed frame. Uncheck to skip. "
+                          : "Pre-checked · tap Share to send this look. Uncheck to skip. "}
                         <a href="/privacy">Privacy</a>
                       </span>
                     </span>
@@ -1915,7 +1915,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     ) {
                       shareRevivedRef.current = true;
                       setSharePromptHidden(false);
-                      setShareConsent(false);
+                      setShareConsent(true);
                       trackTool("tool_sample_share_revive", {
                         media_type: kind || undefined,
                         hard_case: hardCase,
