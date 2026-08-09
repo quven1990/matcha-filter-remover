@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Manrope } from "next/font/google";
+import Script from "next/script";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import "./globals.css";
 
@@ -81,6 +82,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJson) }}
         />
+        {/* Privacy-friendly analytics by Plausible */}
+        <Script
+          async
+          src="https://plausible.shipsolo.io/js/pa-I3fncP_hihcj0SQKo2Teu.js"
+          strategy="afterInteractive"
+        />
+        <Script id="plausible-init" strategy="afterInteractive">
+          {`window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+plausible.init()`}
+        </Script>
+        {/* Google tag (gtag.js) */}
+        <Script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-GZRT1YKE5C"
+          strategy="afterInteractive"
+        />
+        <Script id="ga4-gtag" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-GZRT1YKE5C');`}
+        </Script>
+        {/* Microsoft Clarity */}
+        <Script id="microsoft-clarity" strategy="afterInteractive">
+          {`(function(c,l,a,r,i,t,y){
+c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+})(window, document, "clarity", "script", "xzfom2wtm3");`}
+        </Script>
         <SiteHeader />
         <main>{children}</main>
         <SiteFooter />

@@ -22,9 +22,19 @@ export default function PrivacyPage() {
       </p>
       <h2>Analytics</h2>
       <p>
-        We may use privacy-friendly analytics or Google Analytics in the future to
-        understand aggregate traffic. If enabled, that will be disclosed here and in the
-        Cookie Policy.
+        We use Plausible Analytics (self-hosted at plausible.shipsolo.io), Google Analytics
+        4 (measurement ID G-GZRT1YKE5C), and Microsoft Clarity (project ID xzfom2wtm3) to
+        understand aggregate traffic, product usage, and session behavior. Plausible does
+        not use cookies for analytics. Google Analytics and Clarity may set cookies and
+        process data as described in{" "}
+        <a href="https://policies.google.com/privacy" rel="noopener noreferrer">
+          Google&apos;s Privacy Policy
+        </a>{" "}
+        and{" "}
+        <a href="https://privacy.microsoft.com/privacystatement" rel="noopener noreferrer">
+          Microsoft&apos;s Privacy Statement
+        </a>
+        . These services do not receive the media you process in the tools.
       </p>
       <h2>Contact</h2>
       <p>
