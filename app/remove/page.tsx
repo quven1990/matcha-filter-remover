@@ -119,26 +119,47 @@ export default function RemovePage() {
 
       <section className="section">
         <h2>How the remover works</h2>
+        <h3>Upload a photo or short video</h3>
         <p>
-          Upload a photo or short video. We analyze cast, tone range, and noise, then
-          auto-set Color neutralize, Noise reduction, and Detail restore — with adaptive
-          white-balance under the hood. Everything stays in this tab.
+          Choose a JPG, PNG, WebP, MP4, WebM, or MOV file you have rights to edit. Processing
+          starts in this browser tab.
+        </p>
+        <h3>Analyze cast, tone, and noise</h3>
+        <p>
+          We analyze green cast, tone range, and noise, then auto-set Color neutralize, Noise
+          reduction, and Detail restore — with adaptive white-balance under the hood.
+        </p>
+        <h3>Compare and download</h3>
+        <p>
+          Drag the split to check With filter vs Filter removed, then export in the original
+          format when your browser supports it. Everything stays on-device for the default tool.
         </p>
       </section>
 
       <section className="section">
         <h2>What it can and cannot fix</h2>
+        <h3>What it can reduce</h3>
         <p>
-          Green or yellow cast and mild grain are often reducible. Warped geometry and
-          painted-over detail are not recoverable from a flat export.
+          Green or yellow cast, mild film grain, and harsh contrast are often reducible on a
+          finished export.
+        </p>
+        <h3>What it cannot restore</h3>
+        <p>
+          Warped geometry, painted-over regions, and detail that was never in the file cannot
+          be recovered. This is color/texture cleanup — not identity reconstruction.
         </p>
       </section>
 
       <section className="section">
         <h2>Free, private, no account</h2>
+        <h3>On-device by default</h3>
         <p>
-          The default remover runs in your browser. No signup is required, and your media
-          is not uploaded to our servers for this tool. See also{" "}
+          The default remover runs in your browser. No signup is required, and your media is
+          not uploaded to our servers for this tool.
+        </p>
+        <h3>Related guides</h3>
+        <p>
+          See also{" "}
           <Link href="/guide/how-to-remove-matcha-filter">how to remove a matcha filter</Link>{" "}
           and <Link href="/apply">apply matcha filter</Link>.
         </p>
@@ -148,7 +169,9 @@ export default function RemovePage() {
         <h2>FAQ</h2>
         {faq.map((item) => (
           <details key={item.q}>
-            <summary>{item.q}</summary>
+            <summary>
+              <h3>{item.q}</h3>
+            </summary>
             <p>{item.a}</p>
           </details>
         ))}

@@ -44,12 +44,12 @@ export default function HomePage() {
         <div className="path-row">
           <Link href="/remove" className="path-link">
             <span className="path-kicker">Most searched</span>
-            <strong>Remove</strong>
+            <h3>Remove Matcha Filter</h3>
             <span>Reduce green cast, grain, and haze on a saved photo or short video.</span>
           </Link>
           <Link href="/apply" className="path-link">
             <span className="path-kicker">Create</span>
-            <strong>Apply</strong>
+            <h3>Apply Matcha Filter</h3>
             <span>Add liquid motion, olive grade, and film grain without leaving the browser.</span>
           </Link>
         </div>
@@ -58,6 +58,7 @@ export default function HomePage() {
       <section className="section">
         <p className="eyebrow">Privacy</p>
         <h2>Private by default — media stays in your browser.</h2>
+        <h3>On-device WebGL processing</h3>
         <p>
           Default tools run on-device with WebGL. No account wall, no upload server for
           the free remover and apply flow.
@@ -67,6 +68,7 @@ export default function HomePage() {
       <section className="section section-last">
         <p className="eyebrow">Limits</p>
         <h2>Honest limits beat false “restore original” claims.</h2>
+        <h3>Best-effort cleanup, not pixel recovery</h3>
         <p>
           A baked-in effect cannot be perfectly reversed. We reduce visible cast and
           grain — we do not uncover hidden or censored detail.

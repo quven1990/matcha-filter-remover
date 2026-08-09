@@ -60,27 +60,43 @@ export default function HowToRemovePage() {
       <h1>How to Remove a Matcha Filter</h1>
 
       <div className="answer-box prose-answer">
+        <h2>Short answer</h2>
         <p>
-          <strong>Short answer:</strong> Open{" "}
-          <Link href="/remove">Matcha Filter Remover</Link>, upload a photo or short video,
-          tune the sliders, compare sides, and download. Expect a clearer green cast — not
-          a perfect original rebuild.
+          Open <Link href="/remove">Matcha Filter Remover</Link>, upload a photo or short
+          video, tune the sliders, compare sides, and download. Expect a clearer green cast —
+          not a perfect original rebuild.
         </p>
       </div>
 
-      <ol>
-        <li>Save or screenshot the clip you have rights to edit.</li>
-        <li>
-          Open <Link href="/remove">Matcha Filter Remover</Link>.
-        </li>
-        <li>Upload and run Remove effect.</li>
-        <li>Compare and download.</li>
-      </ol>
+      <h2>Step-by-step</h2>
+      <h3>1. Save media you can edit</h3>
+      <p>Save or screenshot a clip you have rights to edit.</p>
+      <h3>2. Open Matcha Filter Remover</h3>
       <p>
-        Expect a cleaner green cast — not a perfect original rebuild. Hidden or censored
-        detail cannot be recovered. Background:{" "}
+        Go to <Link href="/remove">Matcha Filter Remover</Link>.
+      </p>
+      <h3>3. Upload and process</h3>
+      <p>
+        Upload the file and run the on-device remove effect. Adjust Color neutralize, Noise
+        reduction, and Detail restore if needed.
+      </p>
+      <h3>4. Compare and download</h3>
+      <p>
+        Use the compare split to check With filter vs Filter removed, then download the
+        result.
+      </p>
+
+      <h2>Honest limits</h2>
+      <h3>What you should expect</h3>
+      <p>
+        A cleaner green cast and less grain on many exports — not a perfect original rebuild.
+      </p>
+      <h3>What cannot be recovered</h3>
+      <p>
+        Hidden or censored detail cannot be recovered. Background:{" "}
         <Link href="/guide/what-is-matcha-filter">what the matcha filter is</Link>.
       </p>
+
       <p style={{ marginTop: "2rem" }}>
         <Link href="/remove" className="btn-primary">
           Open Matcha Filter Remover

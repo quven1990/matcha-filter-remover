@@ -38,10 +38,11 @@ export default function WhatIsPage() {
       <h1>What Is the Matcha Filter?</h1>
 
       <div className="answer-box prose-answer">
+        <h2>Definition</h2>
         <p>
-          <strong>Definition:</strong> The matcha filter is a heavy green-tinted short-video
-          look — soft haze, olive grade, and grain — popular on feeds like TikTok. It is an
-          aesthetic effect, not a tea product, and not an official platform brand.
+          The matcha filter is a heavy green-tinted short-video look — soft haze, olive
+          grade, and grain — popular on feeds like TikTok. It is an aesthetic effect, not a
+          tea product, and not an official platform brand.
         </p>
       </div>
 
@@ -51,22 +52,39 @@ export default function WhatIsPage() {
       </p>
 
       <h2>What people mean by “matcha filter”</h2>
+      <h3>Color and texture traits</h3>
       <p>
-        Creators usually mean a strong green cast with soft haze or grain — sometimes
-        paired with a mid-clip clear reveal. It is an effect look, not a tea product.
+        Creators usually mean a strong green cast with soft haze or grain — sometimes paired
+        with a mid-clip clear reveal. It is an effect look, not a tea product.
+      </p>
+      <h3>Not the same as green-screen removal</h3>
+      <p>
+        Correcting a green color cast is different from chroma-key background removal. This
+        guide is about the aesthetic filter look on finished media.
       </p>
 
       <h2>Why it spread</h2>
+      <h3>Instant recognition in a fast scroll</h3>
       <p>
-        The color is instantly recognizable in a fast scroll, and the contrast between
-        filtered and clear frames makes simple edits feel dramatic.
+        The color is instantly recognizable in a fast scroll, so the look travels quickly in
+        short-form feeds.
+      </p>
+      <h3>Before / after contrast</h3>
+      <p>
+        The contrast between filtered and clear frames makes simple edits feel dramatic,
+        which rewards reposts and remakes.
       </p>
 
       <h2>A note on misuse</h2>
+      <h3>What we explain</h3>
       <p>
         Some posts misuse heavy filters in ways that break platform rules. We explain the
-        trend for clarity, but we do not help evade moderation — and our remover cannot
-        reveal hidden or censored detail.
+        trend for clarity so people can recognize the look.
+      </p>
+      <h3>What we do not help with</h3>
+      <p>
+        We do not help evade moderation — and our remover cannot reveal hidden or censored
+        detail.
       </p>
 
       <p style={{ marginTop: "2rem" }}>

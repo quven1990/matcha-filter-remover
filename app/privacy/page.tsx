@@ -16,11 +16,13 @@ export default function PrivacyPage() {
         matchafilter.online.
       </p>
       <h2>Media you process</h2>
+      <h3>On-device tools</h3>
       <p>
         The default Apply and Remove tools process media in your browser. We do not
         upload that media to our servers for the default tools.
       </p>
       <h2>Analytics</h2>
+      <h3>Plausible, Google Analytics, and Clarity</h3>
       <p>
         We use Plausible Analytics (self-hosted at plausible.shipsolo.io), Google Analytics
         4 (measurement ID G-GZRT1YKE5C), and Microsoft Clarity (project ID xzfom2wtm3) to
@@ -37,10 +39,12 @@ export default function PrivacyPage() {
         . These services do not receive the media you process in the tools.
       </p>
       <h2>Contact</h2>
+      <h3>Email</h3>
       <p>
         Questions: <a href="mailto:hello@matchafilter.online">hello@matchafilter.online</a>
       </p>
       <h2>Children</h2>
+      <h3>Age restriction</h3>
       <p>The service is not directed to children under 13.</p>
     </article>
   );

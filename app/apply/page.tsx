@@ -82,26 +82,35 @@ export default function ApplyPage() {
 
       <section className="section">
         <h2>Make the look without the app hop</h2>
+        <h3>Upload once, export locally</h3>
         <p>
-          Upload, tune strength and grain, then download a shareable still or short clip.
-          Prefer removing an existing green veil? Use{" "}
-          <Link href="/remove">Matcha Filter Remover</Link>.
+          Upload a still or short clip, then download a shareable result without jumping
+          through a separate creator app for a basic matcha grade.
+        </p>
+        <h3>Need to reverse the look?</h3>
+        <p>
+          Prefer reducing an existing green veil? Use{" "}
+          <Link href="/remove">Matcha Filter Remover</Link> for best-effort cleanup.
         </p>
       </section>
 
       <section className="section">
         <h2>Tune strength, grain, and motion</h2>
-        <p>
-          Start with the recommended sliders, then adjust Filter strength, Liquid motion,
-          and Film grain while comparing Original vs Matcha applied.
-        </p>
+        <h3>Filter strength</h3>
+        <p>Controls how strong the olive / green grade feels across the frame.</p>
+        <h3>Liquid motion</h3>
+        <p>Adds soft watery movement suited to short loops and aesthetic drafts.</p>
+        <h3>Film grain</h3>
+        <p>Layers texture so the look feels less flat on phones and desktop previews.</p>
       </section>
 
       <section className="section faq">
         <h2>FAQ</h2>
         {faq.map((item) => (
           <details key={item.q}>
-            <summary>{item.q}</summary>
+            <summary>
+              <h3>{item.q}</h3>
+            </summary>
             <p>{item.a}</p>
           </details>
         ))}
