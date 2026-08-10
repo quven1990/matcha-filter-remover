@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdsterraBanner } from "@/components/AdsterraBanner";
 import { MediaTool } from "@/components/MediaTool";
 
 export const metadata: Metadata = {
@@ -176,6 +177,8 @@ export default function RemovePage() {
           </details>
         ))}
       </section>
+
+      <AdsterraBanner size="300x250" />
     </>
   );
 }

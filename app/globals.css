@@ -551,6 +551,47 @@ a {
   padding-bottom: 3.5rem;
 }
 
+.ad-slot {
+  margin: 0 auto;
+  max-width: 52rem;
+  padding: 0.35rem 1.1rem 1.4rem;
+}
+
+.ad-slot-label {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted) 88%, transparent);
+}
+
+.ad-slot #container-51143ea58c1b4f2d420b03ca8803cadb {
+  min-height: 2.5rem;
+}
+
+.ad-slot-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ad-slot-banner-host {
+  width: 300px;
+  min-height: 250px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.ad-slot-banner-320x50 .ad-slot-banner-host {
+  width: 320px;
+  min-height: 50px;
+}
+
+.ad-slot-banner-728x90 .ad-slot-banner-host {
+  width: min(728px, 100%);
+  min-height: 90px;
+}
+
 .path-row {
   display: grid;
   gap: 0.85rem;

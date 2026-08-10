@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
 
 export const metadata: Metadata = {
   title: "How to Remove a Matcha Filter from a Photo or Video",
@@ -96,6 +97,8 @@ export default function HowToRemovePage() {
         Hidden or censored detail cannot be recovered. Background:{" "}
         <Link href="/guide/what-is-matcha-filter">what the matcha filter is</Link>.
       </p>
+
+      <AdsterraLeaderboard />
 
       <p style={{ marginTop: "2rem" }}>
         <Link href="/remove" className="btn-primary">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
 
 export const metadata: Metadata = {
   title: "What Is the Matcha Filter Trend? Explained",
@@ -86,6 +87,8 @@ export default function WhatIsPage() {
         We do not help evade moderation — and our remover cannot reveal hidden or censored
         detail.
       </p>
+
+      <AdsterraLeaderboard />
 
       <p style={{ marginTop: "2rem" }}>
         <Link href="/apply" className="btn-secondary" style={{ marginRight: "0.75rem" }}>

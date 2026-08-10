@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
+import { AdsterraNative } from "@/components/AdsterraNative";
 import { HeroCompare } from "@/components/HeroCompare";
 
 export const metadata: Metadata = {
@@ -62,6 +64,8 @@ export default function HomePage() {
         </div>
       </section>
 
+      <AdsterraNative />
+
       <section className="section">
         <p className="eyebrow">Privacy</p>
         <h2>Private by default — media stays in your browser.</h2>
@@ -72,6 +76,8 @@ export default function HomePage() {
         Policy).
       </p>
       </section>
+
+      <AdsterraLeaderboard />
 
       <section className="section section-last">
         <p className="eyebrow">Limits</p>

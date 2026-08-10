@@ -25,6 +25,12 @@ export default function CookiePage() {
         Opt-in sample sharing does not rely on cookies. We may ask once after you adjust or
         before Save; nothing uploads unless you confirm. Cancel means we collect nothing.
       </p>
+      <h3>Advertising</h3>
+      <p>
+        Third-party ads (Adsterra) may set advertising cookies or similar identifiers. You can
+        block them via browser settings or extensions. Ads appear in content sections, not
+        inside the tool preview or save controls.
+      </p>
 
       <h2>Your choices</h2>
       <h3>Browser controls</h3>

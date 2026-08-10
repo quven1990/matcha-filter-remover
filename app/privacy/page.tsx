@@ -48,6 +48,14 @@ export default function PrivacyPage() {
         </a>
         . These services do not receive the media you process in the tools.
       </p>
+      <h2>Advertising</h2>
+      <h3>Adsterra</h3>
+      <p>
+        We may show third-party ads (Adsterra) on content areas of the site. Ad networks may
+        set cookies or use device identifiers to measure and personalize ads. Ads are kept
+        outside the upload/preview/export controls so they do not block tool actions. See also
+        the Cookie Policy.
+      </p>
       <h2>Contact</h2>
       <h3>Privacy requests</h3>
       <p>
