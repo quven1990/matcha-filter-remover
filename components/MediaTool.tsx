@@ -287,9 +287,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [kind, setKind] = useState<Kind>(null);
   const [fileName, setFileName] = useState("");
   const [sourceExt, setSourceExt] = useState("");
-  const [strength, setStrength] = useState(82);
-  const [liquid, setLiquid] = useState(70);
-  const [grain, setGrain] = useState(27);
+  const [strength, setStrength] = useState(88);
+  const [liquid, setLiquid] = useState(84);
+  const [grain, setGrain] = useState(52);
   const [neutralize, setNeutralize] = useState(82);
   const [denoise, setDenoise] = useState(55);
   const [detail, setDetail] = useState(48);

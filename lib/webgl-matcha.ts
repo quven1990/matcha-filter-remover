@@ -1,13 +1,13 @@
 /**
  * WebGL2 matcha pipeline aimed at TikTok viral “Matcha / Wild Hearts Whisper” look:
- * Apply — sharp liquid-glass ripples, acid-green luminance map, subject stays readable
- * Remove — adaptive balance, acid-green neutralize, bilateral denoise, magenta-guarded restore
+ * Apply — strong liquify, olive/gold luminance bake, stipple grain (sample-matched)
+ * Remove — adaptive balance, gold/acid neutralize, emboss flatten, magenta-guarded restore
  */
 
 export type ProcessMode = "remove" | "apply";
 
 /** Bump when Apply/Remove shaders change so open sessions pick up new programs. */
-export const PIPELINE_REV = 11;
+export const PIPELINE_REV = 12;
 
 export type ApplyParams = {
   strength: number;
@@ -75,10 +75,10 @@ float valueNoise(vec2 p){
 float fbm(vec2 p){
   float a = 0.5;
   float v = 0.0;
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 4; i++) {
     v += a * valueNoise(p);
-    p = p * 2.15 + vec2(13.7, 7.1);
-    a *= 0.5;
+    p = p * 2.07 + vec2(17.3, 9.2);
+    a *= 0.52;
   }
   return v;
 }
@@ -90,81 +90,91 @@ float sampleLuma(vec2 uv){
   return dot(c, vec3(0.299, 0.587, 0.114));
 }
 
-// TikTok-like matcha: sharp liquid-glass warp + luminance→acid-green map.
-// Keep edges crisp (no paint blur) so the subject stays recognizable.
+// Viral TikTok Matcha: strong liquify + luminance→olive/gold metal bake + grain.
+// Tuned against real /remove samples (acid chartreuse, topographic emboss).
 void main(){
   float strength = clamp(u_strength, 0.0, 1.0);
   float motion = clamp(u_liquid, 0.0, 1.0);
   float grainAmt = clamp(u_grain, 0.0, 1.0);
-  float t = u_time * (0.35 + motion * 0.95);
+  float t = u_time * (0.22 + motion * 0.55);
   vec2 uv = v_uv;
   vec2 centered = uv * 2.0 - 1.0;
 
-  float n1 = fbm(centered * 3.2 + vec2(t * 0.28, -t * 0.19));
-  float n2 = fbm(centered.yx * 4.4 + vec2(-t * 0.23, t * 0.17));
-  float nHi = valueNoise(centered * 14.0 + vec2(t * 0.7, -t * 0.45));
+  // Domain warp: large melt swirls + oily mid ripples (sample look)
+  float nA = fbm(centered * 1.55 + vec2(t * 0.18, -t * 0.14));
+  float nB = fbm(centered.yx * 2.05 + vec2(-t * 0.16, t * 0.12) + nA);
+  float nC = fbm(centered * 3.6 + vec2(nB * 2.2, -nA * 1.8) + vec2(t * 0.31, -t * 0.27));
+  float nHi = valueNoise(centered * 18.0 + vec2(t * 0.9, -t * 0.6) + nC * 3.0);
 
-  // High-frequency oily ripples (wet glass), not a big melt smear
-  vec2 flow = vec2(n1 - 0.5, n2 - 0.5) * 2.0;
+  vec2 flow = vec2(nA - 0.5, nB - 0.5) * 2.4;
+  flow += vec2(nC - 0.5, 0.5 - nC) * 1.6;
   flow += vec2(
-    sin(centered.y * 16.0 + n1 * 6.0 + t * 1.6),
-    cos(centered.x * 14.0 - n2 * 5.5 - t * 1.3)
-  ) * 0.55;
-  flow += vec2(nHi - 0.5, 0.5 - nHi) * 0.9;
+    sin((centered.y + nA) * 11.0 + nC * 7.0 + t * 1.1),
+    cos((centered.x - nB) * 10.0 - nA * 6.0 - t * 0.95)
+  ) * (0.7 + motion * 0.55);
+  flow += vec2(nHi - 0.5, 0.5 - nHi) * (0.85 + motion * 0.4);
 
-  float amp = (0.004 + 0.022 * motion) * strength;
+  // Stronger than prior “readable” pass — viral clips melt geometry hard
+  float amp = (0.012 + 0.058 * motion) * strength;
   vec2 warped = uv + flow * amp;
+  // Second micro liquify pass for nested topographic rings
+  float nD = fbm(warped * 5.5 + flow * 1.4 + t * 0.2);
+  warped += (vec2(nD, 1.0 - nD) - 0.5) * amp * 0.55;
 
-  // Mild refraction offset — still sharp samples
-  vec2 refr = normalize(flow + 1e-4) * u_texel * (1.0 + motion * 4.5) * strength;
+  vec2 refr = normalize(flow + 1e-4) * u_texel * (2.0 + motion * 10.0) * strength;
   vec3 src = sampleSrc(warped);
-  vec3 srcR = sampleSrc(warped + vec2(-refr.y, refr.x) * 0.8);
-  vec3 srcB = sampleSrc(warped - vec2(-refr.y, refr.x) * 0.55);
+  vec3 srcR = sampleSrc(warped + vec2(-refr.y, refr.x) * 1.1);
+  vec3 srcB = sampleSrc(warped - vec2(-refr.y, refr.x) * 0.85);
   vec3 base = vec3(srcR.r, src.g, srcB.b);
-  base = mix(src, base, 0.35 * strength);
+  base = mix(src, base, 0.55 * strength);
 
   float L = sampleLuma(warped);
-  float Lx = sampleLuma(warped + vec2(u_texel.x * 1.5, 0.0)) - sampleLuma(warped - vec2(u_texel.x * 1.5, 0.0));
-  float Ly = sampleLuma(warped + vec2(0.0, u_texel.y * 1.5)) - sampleLuma(warped - vec2(0.0, u_texel.y * 1.5));
-  float edge = clamp(length(vec2(Lx, Ly)) * 2.8, 0.0, 1.0);
+  float Lx = sampleLuma(warped + vec2(u_texel.x * 1.2, 0.0)) - sampleLuma(warped - vec2(u_texel.x * 1.2, 0.0));
+  float Ly = sampleLuma(warped + vec2(0.0, u_texel.y * 1.2)) - sampleLuma(warped - vec2(0.0, u_texel.y * 1.2));
+  float edge = clamp(length(vec2(Lx, Ly)) * 3.4, 0.0, 1.0);
 
-  // Contour / topographic shimmer along luma (viral Matcha banding)
-  float contour = abs(sin((L * 18.0 + n1 * 4.0 - t * 0.8) * 3.14159));
-  float ridge = smoothstep(0.55, 0.95, contour);
+  // Contour rings (topo / liquid-glass banding in real Matcha)
+  float contour = abs(sin((L * 22.0 + nC * 5.5 - t * 0.5) * 3.14159));
+  float ridge = smoothstep(0.42, 0.92, contour);
+  float trough = 1.0 - smoothstep(0.15, 0.55, contour);
 
-  // Contrast for chrome-liquid look, but don't crush midtones to black
-  float crush = pow(clamp(L, 0.0, 1.0), mix(0.95, 0.78, strength * 0.7));
-  crush = mix(crush, crush + edge * 0.08 - ridge * 0.04, 0.5);
+  float crush = pow(clamp(L, 0.0, 1.0), mix(1.05, 0.72, strength * 0.85));
+  crush = clamp(crush + edge * 0.12 - trough * 0.06 + ridge * 0.05, 0.0, 1.0);
 
-  // Soft posterize — fewer hard bands than a full thermal bake
-  float levels = mix(12.0, 6.5, strength);
+  // Harder posterize → olive / gold “thermal” steps
+  float levels = mix(10.0, 5.0, strength);
   float poster = floor(crush * levels + 0.5) / levels;
-  poster = mix(crush, poster, 0.45 + strength * 0.25);
+  poster = mix(crush, poster, 0.55 + strength * 0.35);
 
-  vec3 shadow = vec3(0.03, 0.06, 0.015);
-  vec3 deep = vec3(0.12, 0.20, 0.04);
-  vec3 midtone = vec3(0.38, 0.58, 0.08);
-  vec3 acid = vec3(0.74, 0.92, 0.14);
-  vec3 chrome = vec3(0.93, 0.97, 0.62);
-  vec3 palette = mix(shadow, deep, smoothstep(0.0, 0.25, poster));
-  palette = mix(palette, midtone, smoothstep(0.2, 0.52, poster));
-  palette = mix(palette, acid, smoothstep(0.48, 0.78, poster));
-  palette = mix(palette, chrome, smoothstep(0.74, 0.98, poster));
+  // Palette from real samples: deep olive → moss → acid gold → chrome yellow
+  vec3 shadow = vec3(0.02, 0.045, 0.012);
+  vec3 deep = vec3(0.10, 0.18, 0.035);
+  vec3 midtone = vec3(0.32, 0.48, 0.06);
+  vec3 acid = vec3(0.62, 0.78, 0.10);
+  vec3 gold = vec3(0.86, 0.92, 0.28);
+  vec3 chrome = vec3(0.96, 0.98, 0.72);
+  vec3 palette = mix(shadow, deep, smoothstep(0.0, 0.22, poster));
+  palette = mix(palette, midtone, smoothstep(0.18, 0.45, poster));
+  palette = mix(palette, acid, smoothstep(0.4, 0.68, poster));
+  palette = mix(palette, gold, smoothstep(0.62, 0.86, poster));
+  palette = mix(palette, chrome, smoothstep(0.82, 0.99, poster));
 
-  // Specular crests on liquid ridges / face highlights
-  palette += ridge * (0.06 + strength * 0.1) * vec3(0.95, 1.0, 0.55);
-  palette += edge * strength * 0.05 * vec3(0.7, 0.95, 0.25);
+  palette += ridge * (0.08 + strength * 0.14) * vec3(1.0, 0.98, 0.45);
+  palette -= trough * strength * 0.05 * vec3(0.15, 0.08, 0.02);
+  palette += edge * strength * 0.07 * vec3(0.85, 0.95, 0.3);
 
-  // Blend graded look with green-tinted source so identity remains
-  vec3 tinted = mix(base, base * vec3(0.55, 0.95, 0.28) + vec3(0.02, 0.06, 0.0), 0.55);
-  float gradeMix = 0.38 + strength * 0.32;
+  // Near-full bake: keep only a whisper of warped source for structure
+  vec3 tinted = base * vec3(0.42, 0.78, 0.18) + vec3(0.04, 0.08, 0.0);
+  float gradeMix = 0.62 + strength * 0.34;
   vec3 result = mix(tinted, palette, gradeMix);
 
-  // Micro ripple texture (structural), not heavy film grain
-  float ripple = (nHi - 0.5) * (0.04 + motion * 0.05) * strength;
-  result += ripple * vec3(0.85, 1.0, 0.4);
-  float g1 = hash21(gl_FragCoord.xy + floor(u_time * 24.0)) - 0.5;
-  result += g1 * grainAmt * 0.07;
+  // Stipple / film grain like viral exports
+  float stipple = hash21(floor(gl_FragCoord.xy * mix(0.55, 1.35, grainAmt)) + floor(u_time * 18.0));
+  float g1 = hash21(gl_FragCoord.xy + floor(u_time * 30.0)) - 0.5;
+  result += (stipple - 0.5) * grainAmt * (0.10 + strength * 0.06) * vec3(0.95, 1.0, 0.55);
+  result += g1 * grainAmt * 0.09;
+  float ripple = (nHi - 0.5) * (0.05 + motion * 0.07) * strength;
+  result += ripple * vec3(0.9, 1.0, 0.35);
 
   outColor = vec4(clamp(result, 0.0, 1.0), 1.0);
 }`;
@@ -332,53 +342,67 @@ void main(){
   // One bilateral pass (cheaper on mobile) — chaos from center vs local
   vec3 local = edgeNeighborhood(uv, 1.4 + denoise * 2.4, denoise);
   float chaos = clamp(length(center - local) * 2.0, 0.0, 1.0);
-  float denoiseEff = clamp(denoise + chaos * 0.18 * neutralize, 0.0, 1.0);
-  vec3 smoothed = mix(center, local, denoiseEff * 0.82);
+  float denoiseEff = clamp(denoise + chaos * 0.22 * neutralize, 0.0, 1.0);
+  vec3 smoothed = mix(center, local, denoiseEff * 0.88);
 
   if (temp > 0.001) {
     vec3 previous = texture(u_prev, clamp(uv, vec2(0.002), vec2(0.998))).rgb;
     float lumaDelta = abs(luma(center) - luma(previous));
     float colorDelta = length(center - previous);
     float stillness = 1.0 - smoothstep(0.018, 0.115, lumaDelta + colorDelta * 0.42);
-    float temporalMix = stillness * denoiseEff * 0.3 * temp;
+    float temporalMix = stillness * denoiseEff * 0.32 * temp;
     smoothed = mix(smoothed, previous, temporalMix);
   }
 
   // Dual-pass neutralize (triple was too heavy for live video)
   vec3 pass1 = neutralizeCast(adaptiveBalance(smoothed), neutralize);
-  vec3 corrected = neutralizeCast(pass1, neutralize * (0.28 + chaos * 0.12));
-  vec3 broadSource = edgeNeighborhood(uv, 3.0 + denoiseEff * 1.6, min(1.0, denoiseEff + 0.2));
-  vec3 broad = neutralizeCast(adaptiveBalance(broadSource), neutralize * 0.75);
+  vec3 corrected = neutralizeCast(pass1, neutralize * (0.34 + chaos * 0.14));
+  vec3 broadSource = edgeNeighborhood(uv, 3.2 + denoiseEff * 2.0, min(1.0, denoiseEff + 0.25));
+  vec3 broad = neutralizeCast(adaptiveBalance(broadSource), neutralize * 0.82);
   float edgeGuard = 1.0 - smoothstep(0.08, 0.34, length(corrected - broad));
-  vec3 detail = corrected + (corrected - broad) * restore * 0.36 * edgeGuard;
-  float contrast = 1.0 + restore * 0.055 + neutralize * 0.02;
+  // Prefer broad (less emboss) when chaos is high — viral Matcha is mostly liquid metal
+  float flatten = chaos * neutralize * (0.28 + denoiseEff * 0.22);
+  vec3 detail = mix(corrected, broad, flatten);
+  detail += (corrected - broad) * restore * 0.28 * edgeGuard * (1.0 - flatten * 0.7);
+  float contrast = 1.0 + restore * 0.04 - neutralize * 0.03 - flatten * 0.06;
   detail = (detail - 0.5) * contrast + 0.5;
 
-  detail = mix(detail, pow(max(detail, 0.0), vec3(0.92)), neutralize * 0.14);
+  detail = mix(detail, pow(max(detail, 0.0), vec3(0.94)), neutralize * 0.16);
   float L1 = luma(detail);
   float L2 = luma(center);
-  detail += (L2 - L1) * vec3(0.15) * neutralize;
+  detail += (L2 - L1) * vec3(0.12) * neutralize;
 
   float magenta = max(0.0, (detail.r + detail.b) * 0.5 - detail.g);
-  detail.g += magenta * 0.8;
-  detail.r -= magenta * 0.28;
-  detail.b -= magenta * 0.4;
+  detail.g += magenta * 0.85;
+  detail.r -= magenta * 0.3;
+  detail.b -= magenta * 0.42;
   float purple = max(0.0, detail.b - detail.g) * max(0.0, detail.r - detail.g * 0.55);
-  detail.b -= purple * 0.72;
-  detail.r -= purple * 0.3;
+  detail.b -= purple * 0.75;
+  detail.r -= purple * 0.32;
   float redLead = max(0.0, detail.r - max(detail.g, detail.b));
-  detail.r -= redLead * 0.3 * neutralize;
-  detail.g += redLead * 0.12 * neutralize;
+  detail.r -= redLead * 0.32 * neutralize;
+  detail.g += redLead * 0.14 * neutralize;
 
   float goldLeft = max(0.0, min(detail.r, detail.g) - detail.b);
-  detail.r -= goldLeft * neutralize * 0.35;
-  detail.g -= goldLeft * neutralize * 0.38;
-  detail.b += goldLeft * neutralize * 0.2;
+  detail.r -= goldLeft * neutralize * 0.42;
+  detail.g -= goldLeft * neutralize * 0.46;
+  detail.b += goldLeft * neutralize * 0.24;
 
-  // Light emboss flatten for liquid-metal stills
+  // Stronger emboss flatten for liquid-metal stills / TikTok screenshots
   float emboss = luma(detail) - luma(broad);
-  detail -= emboss * chaos * neutralize * 0.35;
-  detail = mix(detail, broad, chaos * neutralize * 0.1);
+  detail -= emboss * chaos * neutralize * 0.55;
+  detail = mix(detail, broad, chaos * neutralize * 0.18);
+
+  // Soft mono pull when still very casty after cleanup
+  float Ld = luma(detail);
+  float highD = max(max(detail.r, detail.g), detail.b);
+  float lowD = min(min(detail.r, detail.g), detail.b);
+  float satD = highD > 1e-4 ? (highD - lowD) / highD : 0.0;
+  float stillCast = smoothstep(0.12, 0.4, satD) * neutralize;
+  detail = mix(detail, vec3(Ld), stillCast * 0.28);
+  // Warm skin-ish bias so heavy desat doesn't read as dead metal
+  detail.r += stillCast * 0.025;
+  detail.b -= stillCast * 0.01;
 
   outColor = vec4(clamp(detail, 0.0, 1.0), 1.0);
 }`;
