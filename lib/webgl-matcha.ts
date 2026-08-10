@@ -7,7 +7,7 @@
 export type ProcessMode = "remove" | "apply";
 
 /** Bump when Apply/Remove shaders change so open sessions pick up new programs. */
-export const PIPELINE_REV = 10;
+export const PIPELINE_REV = 11;
 
 export type ApplyParams = {
   strength: number;
@@ -706,10 +706,11 @@ export function analyzeFrame(
     balance[2] * (1 - castGuard * 0.55) + 1 * castGuard * 0.55,
   ];
 
-  // Auto strength — gold liquid-metal needs higher neutralize/denoise ceilings
-  const neutralize = Math.round(clamp01(0.48 + castScore * 0.34, 0.48, 0.88) * 100);
-  const denoise = Math.round(clamp01(0.36 + noise * 0.48 + castScore * 0.22, 0.36, 0.88) * 100);
-  const detail = Math.round(clamp01(0.28 + noise * 0.12 + crush * 0.08, 0.26, 0.55) * 100);
+  // Auto strength — TikTok gold/acid samples need strong cast kill; keep detail modest
+  // so liquid emboss does not read as grey metal after neutralize.
+  const neutralize = Math.round(clamp01(0.54 + castScore * 0.36, 0.54, 0.93) * 100);
+  const denoise = Math.round(clamp01(0.40 + noise * 0.46 + castScore * 0.24, 0.40, 0.90) * 100);
+  const detail = Math.round(clamp01(0.24 + noise * 0.10 + crush * 0.06, 0.22, 0.48) * 100);
 
   return {
     neutralize,

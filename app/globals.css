@@ -1011,6 +1011,34 @@ a {
   display: none;
 }
 
+.post-save-share-tip {
+  position: fixed;
+  left: 0.85rem;
+  right: 0.85rem;
+  bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
+  z-index: 65;
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 12px 32px rgba(21, 32, 25, 0.16);
+}
+
+.post-save-share-tip p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.post-save-share-tip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .save-sheet {
   position: fixed;
   inset: 0;
@@ -1722,6 +1750,19 @@ a {
     border-top: 1px solid var(--line);
     box-shadow: 0 -10px 28px rgba(21, 32, 25, 0.12);
     backdrop-filter: blur(12px);
+  }
+
+  .mobile-export-dock.is-video {
+    grid-template-columns: 1.25fr 1fr auto auto;
+  }
+
+  .tool-shell.has-export-dock .post-save-share-tip {
+    bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .tool-shell.has-export-dock .mobile-export-dock.is-video ~ .post-save-share-tip,
+  .tool-shell.has-export-dock:has(.mobile-export-dock.is-video) .post-save-share-tip {
+    bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
   }
 
   .mobile-export-dock .btn-primary,

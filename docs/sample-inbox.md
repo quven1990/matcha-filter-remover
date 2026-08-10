@@ -4,9 +4,9 @@ Users can opt in on `/remove` or `/apply` to upload a compressed thumbnail/frame
 
 Guidance (compliant):
 - Do not interrupt immediately after upload
-- Ask once per browser tab after first slider/preset tweak (~0.9s), or before Save/Download
-- Confirm uploads a compressed frame; Cancel skips and suppresses further prompts this session
-- If the prompt appears before Save, Cancel/Confirm both continue the save afterward
+- Do not block Save/Download — export always proceeds
+- After a successful save, optionally show a light “share a sample?” tip (once per tab)
+- Confirm uploads a compressed frame; dismiss skips and suppresses further prompts this session
 - Never blocks the adjust UI; default processing stays on-device; no silent auto-upload
 
 ## Status

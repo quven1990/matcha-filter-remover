@@ -333,14 +333,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [shareState, setShareState] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [shareError, setShareError] = useState<string | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [postSaveShareTip, setPostSaveShareTip] = useState(false);
   const [hardCase, setHardCase] = useState(false);
-  const pendingDownloadRef = useRef(false);
-  const skipShareGateRef = useRef(false);
-  const adjustShareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const downloadFnRef = useRef<(opts?: { skipShareGate?: boolean }) => Promise<void>>(
-    async () => undefined,
-  );
-  const scheduleShareAfterAdjustRef = useRef<() => void>(() => undefined);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -386,6 +380,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     });
   }, []);
 
+  const pendingShareTipRef = useRef(false);
+
   const noteCompare = useCallback(
     (action: string) => {
       if (compareSeenRef.current.has(action)) return;
@@ -404,7 +400,6 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           value_bucket: valueBucket(value),
           media_type: kind || undefined,
         });
-        scheduleShareAfterAdjustRef.current();
       }, 400);
     },
     [kind, trackTool],
@@ -483,13 +478,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setShareState("idle");
     setShareError(null);
     setShareModalOpen(false);
+    setPostSaveShareTip(false);
     setHardCase(false);
-    pendingDownloadRef.current = false;
-    skipShareGateRef.current = false;
-    if (adjustShareTimerRef.current) {
-      clearTimeout(adjustShareTimerRef.current);
-      adjustShareTimerRef.current = null;
-    }
+    pendingShareTipRef.current = false;
     clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -516,9 +507,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     return () => window.clearTimeout(timer);
   }, [shareState]);
 
-  const offerSharePrompt = useCallback(
+  const offerShareModal = useCallback(
     (reason: string) => {
       if (hasSampleShareDecision() || shareModalOpen || shareState === "uploading") return false;
+      setPostSaveShareTip(false);
       setShareState("idle");
       setShareError(null);
       setShareModalOpen(true);
@@ -532,15 +524,30 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     [shareModalOpen, shareState, kind, hardCase, trackTool],
   );
 
-  const scheduleShareAfterAdjust = useCallback(() => {
-    if (hasSampleShareDecision() || shareModalOpen) return;
-    if (adjustShareTimerRef.current) clearTimeout(adjustShareTimerRef.current);
-    adjustShareTimerRef.current = setTimeout(() => {
-      adjustShareTimerRef.current = null;
-      offerSharePrompt("after_adjust");
-    }, 900);
-  }, [shareModalOpen, offerSharePrompt]);
-  scheduleShareAfterAdjustRef.current = scheduleShareAfterAdjust;
+  const showPostSaveShareTip = useCallback(() => {
+    if (hasSampleShareDecision() || shareModalOpen || shareState === "uploading") return;
+    setPostSaveShareTip(true);
+    trackTool("tool_sample_share_tip_show", {
+      media_type: kind || undefined,
+      hard_case: hardCase,
+    });
+  }, [shareModalOpen, shareState, kind, hardCase, trackTool]);
+
+  const queuePostSaveShareTip = useCallback(() => {
+    if (hasSampleShareDecision() || shareModalOpen || shareState === "uploading") return;
+    if (prefersMobileSave()) {
+      pendingShareTipRef.current = true;
+      return;
+    }
+    showPostSaveShareTip();
+  }, [shareModalOpen, shareState, showPostSaveShareTip]);
+
+  useEffect(() => {
+    if (saveSheet) return;
+    if (!pendingShareTipRef.current) return;
+    pendingShareTipRef.current = false;
+    showPostSaveShareTip();
+  }, [saveSheet, showPostSaveShareTip]);
 
   const dismissShareModal = useCallback(
     (reason: string) => {
@@ -548,18 +555,28 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       setShareModalOpen(false);
       setShareState("idle");
       setShareError(null);
+      setPostSaveShareTip(false);
       markSampleShareDecision();
       trackTool("tool_sample_share_dismiss", {
         media_type: kind,
         hard_case: hardCase,
         reason,
       });
-      if (pendingDownloadRef.current) {
-        pendingDownloadRef.current = false;
-        void downloadFnRef.current({ skipShareGate: true });
-      }
     },
     [shareState, kind, hardCase, trackTool],
+  );
+
+  const dismissPostSaveShareTip = useCallback(
+    (reason: string) => {
+      setPostSaveShareTip(false);
+      markSampleShareDecision();
+      trackTool("tool_sample_share_tip_dismiss", {
+        media_type: kind || undefined,
+        hard_case: hardCase,
+        reason,
+      });
+    },
+    [kind, hardCase, trackTool],
   );
 
   useEffect(() => {
@@ -930,13 +947,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setShareState("idle");
     setShareError(null);
     setShareModalOpen(false);
+    setPostSaveShareTip(false);
     setHardCase(false);
-    pendingDownloadRef.current = false;
-    skipShareGateRef.current = false;
-    if (adjustShareTimerRef.current) {
-      clearTimeout(adjustShareTimerRef.current);
-      adjustShareTimerRef.current = null;
-    }
+    pendingShareTipRef.current = false;
     stopLoop();
     clearObjectUrl();
     setReady(false);
@@ -1250,12 +1263,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         return;
       }
       setShareState("done");
+      setPostSaveShareTip(false);
       markSampleShareDecision();
       trackTool("tool_sample_share_success", { media_type: kind, hard_case: hardCase });
-      if (pendingDownloadRef.current) {
-        pendingDownloadRef.current = false;
-        void downloadFnRef.current({ skipShareGate: true });
-      }
     } catch {
       setShareState("error");
       setShareError("Could not prepare the sample from this frame.");
@@ -1263,78 +1273,120 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     }
   };
 
-  const download = async (opts?: { skipShareGate?: boolean }) => {
+  const exportStillFromCanvas = async (
+    glCanvas: HTMLCanvasElement,
+    opts: {
+      stem: string;
+      elapsed?: string;
+      mediaType: "image" | "video";
+      exportKind: "image" | "frame";
+      extHint?: string;
+    },
+  ) => {
+    const fmt =
+      opts.exportKind === "frame"
+        ? { mime: "image/jpeg", ext: "jpg", quality: 0.92 }
+        : pickImageExport(opts.extHint || "png");
+    const exportName =
+      opts.exportKind === "frame"
+        ? `${mode}-matcha-frame-${opts.stem}.jpg`
+        : `${mode}-matcha-${opts.stem}.${fmt.ext}`;
+    const useSaveSheet = prefersMobileSave();
+
+    await runStage(useSaveSheet ? "Preparing image…" : "Rendering export…", 30, useSaveSheet ? 280 : 500);
+    const blob = await canvasToBlob(glCanvas, fmt.mime, fmt.quality);
+    await runStage(useSaveSheet ? "Opening save sheet…" : "Packaging file…", 72, useSaveSheet ? 220 : 450);
+
+    if (useSaveSheet) {
+      const url = URL.createObjectURL(blob);
+      const file = new File([blob], exportName, { type: fmt.mime });
+      closeSaveSheet();
+      setSaveSheet({
+        kind: "image",
+        url,
+        fileName: exportName,
+        mime: fmt.mime,
+        blob,
+        canShare: canShareFile(file),
+        ext: fmt.ext,
+      });
+      trackTool("tool_download_success", {
+        media_type: opts.mediaType,
+        export_ext: fmt.ext,
+        format_preserved:
+          opts.exportKind === "frame"
+            ? false
+            : fmt.ext === (opts.extHint === "jpeg" ? "jpg" : opts.extHint),
+        elapsed_ms_bucket: opts.elapsed,
+        save_method: "mobile_sheet",
+        export_kind: opts.exportKind,
+      });
+    } else {
+      await runStage("Starting download…", 94, 320);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = exportName;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2_000);
+      trackTool("tool_download_success", {
+        media_type: opts.mediaType,
+        export_ext: fmt.ext,
+        format_preserved:
+          opts.exportKind === "frame"
+            ? false
+            : fmt.ext === (opts.extHint === "jpeg" ? "jpg" : opts.extHint),
+        elapsed_ms_bucket: opts.elapsed,
+        save_method: "file_download",
+        export_kind: opts.exportKind,
+      });
+    }
+    queuePostSaveShareTip();
+  };
+
+  const download = async (opts?: { as?: "auto" | "frame" | "video" }) => {
     const glCanvas = glCanvasRef.current;
     if (!glCanvas || !ready || busy) return;
-    if (!opts?.skipShareGate && !skipShareGateRef.current) {
-      if (offerSharePrompt("before_download")) {
-        pendingDownloadRef.current = true;
-        return;
-      }
-    }
-    skipShareGateRef.current = false;
+    const as = opts?.as ?? "auto";
     const stem = baseFileName(fileName);
-    trackTool("tool_download_click", { media_type: kind || undefined });
     const elapsed =
       uploadReadyAtRef.current != null
         ? elapsedBucket(performance.now() - uploadReadyAtRef.current)
         : undefined;
+    const wantFrame =
+      kind === "video" && (as === "frame" || (as === "auto" && mobileSaveUi));
+    const wantVideo = kind === "video" && !wantFrame;
 
-    if (kind === "image") {
+    trackTool("tool_download_click", {
+      media_type: kind || undefined,
+      export_kind: kind === "image" ? "image" : wantFrame ? "frame" : "video",
+    });
+
+    if (kind === "image" || wantFrame) {
       setBusy(true);
       setError(null);
       try {
-        const fmt = pickImageExport(sourceExt || "png");
-        const exportName = `${mode}-matcha-${stem}.${fmt.ext}`;
-        const useSaveSheet = prefersMobileSave();
-
-        await runStage(useSaveSheet ? "Preparing image…" : "Rendering export…", 30, useSaveSheet ? 280 : 700);
-        const blob = await canvasToBlob(glCanvas, fmt.mime, fmt.quality);
-        await runStage(useSaveSheet ? "Opening save sheet…" : "Packaging file…", 72, useSaveSheet ? 220 : 650);
-
-        if (useSaveSheet) {
-          const url = URL.createObjectURL(blob);
-          const file = new File([blob], exportName, { type: fmt.mime });
-          closeSaveSheet();
-          setSaveSheet({
-            kind: "image",
-            url,
-            fileName: exportName,
-            mime: fmt.mime,
-            blob,
-            canShare: canShareFile(file),
-            ext: fmt.ext,
-          });
-          trackTool("tool_download_success", {
-            media_type: "image",
-            export_ext: fmt.ext,
-            format_preserved: fmt.ext === (sourceExt === "jpeg" ? "jpg" : sourceExt),
-            elapsed_ms_bucket: elapsed,
-            save_method: "mobile_sheet",
-          });
-        } else {
-          await runStage("Starting download…", 94, 400);
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(blob);
-          a.download = exportName;
-          a.click();
-          setTimeout(() => URL.revokeObjectURL(a.href), 2_000);
-          trackTool("tool_download_success", {
-            media_type: "image",
-            export_ext: fmt.ext,
-            format_preserved: fmt.ext === (sourceExt === "jpeg" ? "jpg" : sourceExt),
-            elapsed_ms_bucket: elapsed,
-            save_method: "file_download",
-          });
-        }
+        drawFrame();
+        await exportStillFromCanvas(glCanvas, {
+          stem,
+          elapsed,
+          mediaType: kind === "video" ? "video" : "image",
+          exportKind: wantFrame ? "frame" : "image",
+          extHint: sourceExt || "png",
+        });
       } catch {
-        trackTool("tool_download_fail", { media_type: "image", reason: "unknown" });
+        trackTool("tool_download_fail", {
+          media_type: kind || "image",
+          reason: "unknown",
+          export_kind: wantFrame ? "frame" : "image",
+        });
       } finally {
         clearStatus();
         setBusy(false);
       }
       return;
     }
+
+    if (!wantVideo) return;
 
     const video = videoRef.current;
     const source = sourceCanvasRef.current;
@@ -1350,14 +1402,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
       const previousMuted = video.muted;
       const previousVolume = video.volume;
-      // Unmute so captureStream can include audio (muted often yields silent tracks).
       video.muted = false;
       if (video.volume <= 0) video.volume = 0.85;
 
       const { stream, hasAudio, mediaStream } = buildExportStream(glCanvas, video, 30);
       let picked = pickVideoExport(hasAudio);
       if (!picked && hasAudio) {
-        // Retry video-only MIME list if audio-tagged codecs are unsupported
         for (const track of stream.getAudioTracks()) stream.removeTrack(track);
         picked = pickVideoExport(false);
       }
@@ -1369,7 +1419,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         });
         setError({
           title: "Video export not supported here",
-          detail: "This browser cannot record canvas video. Try Chrome/Edge, or download a photo as JPG/PNG instead.",
+          detail:
+            "This browser cannot record canvas video. Try Chrome/Edge, or save the current frame as a photo instead.",
           reason: "no_recorder",
         });
         trackTool("tool_download_fail", { media_type: "video", reason: "no_recorder" });
@@ -1474,6 +1525,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           elapsed_ms_bucket: elapsed,
           save_method: "mobile_sheet",
           has_audio: exportHasAudio,
+          export_kind: "video",
         });
       } else {
         await runStage("Starting download…", 95, 380);
@@ -1489,23 +1541,25 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           elapsed_ms_bucket: elapsed,
           save_method: "file_download",
           has_audio: exportHasAudio,
+          export_kind: "video",
         });
+      }
+      queuePostSaveShareTip();
 
-        if (picked.ext === "webm" && (sourceExt === "mp4" || sourceExt === "mov")) {
-          setError({
-            title: "Saved as WebM (browser limit)",
-            detail: exportHasAudio
-              ? "This browser cannot record MP4 from canvas, so the download is WebM (with audio when possible). Convert to MP4 in any editor if needed."
-              : "This browser cannot record MP4 from canvas, so the download is WebM. Convert to MP4 in any editor if needed.",
-            tone: "info",
-          });
-        } else if (!exportHasAudio) {
-          setError({
-            title: "Exported without audio",
-            detail: "This browser could not capture the video’s audio track into the recording. Picture frames are still included.",
-            tone: "info",
-          });
-        }
+      if (picked.ext === "webm" && sourceExt && sourceExt !== "webm") {
+        setError({
+          title: "Saved as WebM (browser limit)",
+          detail:
+            "This browser could not encode MP4 here. WebM may not open in iPhone Photos — convert to MP4 if needed, or save a still frame instead.",
+          tone: "info",
+        });
+      } else if (!exportHasAudio) {
+        setError({
+          title: "Exported without audio",
+          detail:
+            "This browser could not capture the video’s audio track into the recording. Picture frames are still included.",
+          tone: "info",
+        });
       }
 
       video.loop = true;
@@ -1515,7 +1569,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     } catch {
       setError({
         title: "Video export failed",
-        detail: "Try a shorter clip (under 30s), or download a still photo in its original format.",
+        detail: "Try a shorter clip (under 30s), or save the current frame as a photo instead.",
         reason: "record_fail",
       });
       trackTool("tool_download_fail", { media_type: "video", reason: "record_fail" });
@@ -1524,15 +1578,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       setBusy(false);
     }
   };
-  downloadFnRef.current = download;
 
-  const downloadLabel = (() => {
+  const primarySaveLabel = (() => {
     if (!ready) return "Download";
     if (kind === "image") {
-      const fmt = pickImageExport(sourceExt || "png");
-      return mobileSaveUi ? `Save ${fmt.ext.toUpperCase()}` : `Download ${fmt.ext.toUpperCase()}`;
+      return mobileSaveUi ? "Save to Photos" : "Download photo";
     }
-    return mobileSaveUi ? "Save video" : "Download video";
+    if (mobileSaveUi) return "Save this frame";
+    return "Download video";
   })();
 
   const shareSaveSheet = async () => {
@@ -1599,13 +1652,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         <p className="lead mt-3">{subtitle}</p>
         <p className="tool-howto tool-howto-desktop">
           {isRemove
-            ? "Left = your upload still with the green matcha look. Right = after we reduce that cast. Drag the split, or hold “Show original” to flash the full left-side frame."
+            ? "Left = green matcha cast. Right = after we reduce that color cast (liquid warp may still remain). Drag the split, or hold “Show original”."
             : "Left = your original upload. Right = with the matcha look applied. Drag the split, or hold “Show original” to flash the untouched frame."}
         </p>
         {ready && (
           <p className="tool-howto tool-howto-mobile">
-            Scroll down to tweak the sliders. Drag the vertical line to compare, or hold “Show
-            original”.
+            {isRemove
+              ? "We mainly clear the green/gold cast — warped liquid shape may stay. Save when the right side looks better."
+              : "Scroll to tweak sliders. Drag the split to compare, or hold “Show original”."}
           </p>
         )}
       </div>
@@ -1785,7 +1839,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                         }}
                         disabled={busy}
                       >
-                        {mobileSaveUi ? "Save" : "Download"}
+                        {mobileSaveUi ? (kind === "video" ? "Save frame" : "Save") : "Download"}
                       </button>
                     </div>
                   </div>
@@ -1820,15 +1874,15 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           {ready && showTip && (
             <div className="engage-tip" role="status">
               <div className="engage-tip-copy">
-                {isRemove && autoTuned ? (
+                {isRemove ? (
                   <>
-                    <strong>Auto-tuned.</strong> Scroll to the sliders below to tweak, or use
-                    Stronger remove.
+                    <strong>Best-effort remove.</strong> Clears green/gold cast and grain; baked liquid
+                    warp often stays. Save when the right side looks better
+                    {autoTuned ? " — auto-tuned already." : "."}
                   </>
                 ) : (
                   <>
-                    <strong>Next:</strong> use the sliders below to fine-tune
-                    {isRemove ? ", or tap Stronger remove" : ""}.
+                    <strong>Next:</strong> use the sliders below to fine-tune the matcha look.
                   </>
                 )}
               </div>
@@ -1855,8 +1909,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <p>
                 {isRemove
                   ? autoTuned
-                    ? "Drag the sliders — preview updates live."
-                    : "Drag the sliders to reduce green cast and grain."
+                    ? "Auto-tuned for green/gold cast. Warp may remain — save when it looks better."
+                    : "Reduce green/gold cast and grain. Liquid warp is often permanent in screenshots."
                   : "Drag the sliders to tune liquid matcha look."}
               </p>
             </div>
@@ -1934,16 +1988,15 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   className="btn-ghost btn-compact"
                   disabled={!ready || busy}
                   onClick={() => {
-                    setNeutralize(92);
-                    setDenoise(62);
-                    setDetail(48);
+                    setNeutralize(96);
+                    setDenoise(72);
+                    setDetail(42);
                     setCompare(50);
                     setAutoTuned(false);
                     trackTool("tool_preset_click", {
                       preset: "stronger_remove",
                       media_type: kind || undefined,
                     });
-                    scheduleShareAfterAdjust();
                   }}
                 >
                   Stronger remove preset
@@ -2079,7 +2132,15 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           <div className={`control-block export-block export-block-panel ${ready ? "is-ready" : ""}`}>
             <div className="control-block-head">
               <h2>{ready ? "3. Export" : "Next"}</h2>
-              <p>{ready ? "Download keeps your source format when possible." : "Upload a photo or short video to start."}</p>
+              <p>
+                {ready
+                  ? kind === "video"
+                    ? "On phones, save a still first — full video export is optional."
+                    : mobileSaveUi
+                      ? "Save to Photos via the share sheet when your phone allows it."
+                      : "Download keeps your source format when possible."
+                  : "Upload a photo or short video to start."}
+              </p>
             </div>
             <div className="action-row">
               {ready ? (
@@ -2090,8 +2151,18 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     onClick={() => void download()}
                     disabled={busy}
                   >
-                    {downloadLabel}
+                    {primarySaveLabel}
                   </button>
+                  {kind === "video" && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => void download({ as: mobileSaveUi ? "video" : "frame" })}
+                      disabled={busy}
+                    >
+                      {mobileSaveUi ? "Export video" : "Save this frame"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn-secondary"
@@ -2139,10 +2210,24 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
       </div>
 
       {ready && (
-        <div className="mobile-export-dock" role="region" aria-label="Export actions">
+        <div
+          className={`mobile-export-dock ${kind === "video" ? "is-video" : ""}`}
+          role="region"
+          aria-label="Export actions"
+        >
           <button type="button" className="btn-primary" onClick={() => void download()} disabled={busy}>
-            {downloadLabel}
+            {primarySaveLabel}
           </button>
+          {kind === "video" && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => void download({ as: "video" })}
+              disabled={busy}
+            >
+              Export video
+            </button>
+          )}
           <button
             type="button"
             className="btn-secondary"
@@ -2157,6 +2242,32 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           <button type="button" className="btn-ghost" onClick={reset}>
             Reset
           </button>
+        </div>
+      )}
+
+      {postSaveShareTip && !shareModalOpen && (
+        <div className="post-save-share-tip" role="status">
+          <p>
+            {isRemove
+              ? "Help improve remove? Share a tiny compressed sample (optional)."
+              : "Help improve the look? Share a tiny compressed sample (optional)."}
+          </p>
+          <div className="post-save-share-tip-actions">
+            <button
+              type="button"
+              className="btn-primary btn-compact"
+              onClick={() => offerShareModal("after_download")}
+            >
+              Share sample
+            </button>
+            <button
+              type="button"
+              className="btn-ghost btn-compact"
+              onClick={() => dismissPostSaveShareTip("not_now")}
+            >
+              Not now
+            </button>
+          </div>
         </div>
       )}
 
