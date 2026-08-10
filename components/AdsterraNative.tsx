@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** Adsterra Native Banner — keep out of tool preview / export dock. */
 const SCRIPT_SRC =
@@ -11,7 +11,16 @@ type AdsterraNativeProps = {
   className?: string;
 };
 
+function hasAdCreative(root: HTMLElement | null) {
+  if (!root) return false;
+  return !!root.querySelector("iframe, img, ins, [id^='aswift'], a[href]");
+}
+
 export function AdsterraNative({ className = "" }: AdsterraNativeProps) {
+  const rootRef = useRef<HTMLElement>(null);
+  const [visible, setVisible] = useState(true);
+  const [filled, setFilled] = useState(false);
+
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_ADSTERRA_NATIVE === "0") return;
 
@@ -27,16 +36,44 @@ export function AdsterraNative({ className = "" }: AdsterraNativeProps) {
     script.dataset.adsterraNative = "1";
     document.body.appendChild(script);
 
+    const root = rootRef.current;
+    const check = () => {
+      const container = document.getElementById(CONTAINER_ID);
+      if (hasAdCreative(container) || hasAdCreative(root)) {
+        setFilled(true);
+        setVisible(true);
+        return true;
+      }
+      return false;
+    };
+
+    const observer = new MutationObserver(() => {
+      check();
+    });
+    if (root) observer.observe(root, { childList: true, subtree: true });
+
+    const hideTimer = window.setTimeout(() => {
+      if (!check()) setVisible(false);
+    }, 7000);
+
     return () => {
+      observer.disconnect();
+      clearTimeout(hideTimer);
       script.remove();
     };
   }, []);
 
   if (process.env.NEXT_PUBLIC_ADSTERRA_NATIVE === "0") return null;
+  if (!visible) return null;
 
   return (
-    <aside className={`ad-slot ${className}`.trim()} aria-label="Sponsored">
-      <p className="ad-slot-label">Sponsored</p>
+    <aside
+      ref={rootRef}
+      className={`ad-slot ${filled ? "is-filled" : "is-loading"} ${className}`.trim()}
+      aria-label="Sponsored"
+      aria-hidden={!filled}
+    >
+      {filled ? <p className="ad-slot-label">Sponsored</p> : null}
       <div id={CONTAINER_ID} />
     </aside>
   );

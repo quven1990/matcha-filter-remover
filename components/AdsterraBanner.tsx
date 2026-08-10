@@ -49,12 +49,24 @@ function adsDisabled(size: BannerSize) {
   return false;
 }
 
+function hasAdCreative(root: HTMLElement | null) {
+  if (!root) return false;
+  if (root.querySelector("iframe, img, ins, [id^='aswift']")) return true;
+  // Some units inject siblings after the host.
+  const parent = root.parentElement;
+  if (!parent) return false;
+  return !!parent.querySelector("iframe, img");
+}
+
 /** Adsterra iframe banners — content areas only, never tool dock/preview. */
 export function AdsterraBanner({ size = "300x250", className = "" }: AdsterraBannerProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLElement>(null);
   const reactId = useId().replace(/:/g, "");
   const config = BANNER_CONFIG[size];
   const envOff = adsDisabled(size);
+  const [visible, setVisible] = useState(true);
+  const [filled, setFilled] = useState(false);
 
   useEffect(() => {
     if (envOff) return;
@@ -62,6 +74,8 @@ export function AdsterraBanner({ size = "300x250", className = "" }: AdsterraBan
     if (!host) return;
 
     host.replaceChildren();
+    setFilled(false);
+    setVisible(true);
 
     window.atOptions = {
       key: config.key,
@@ -79,23 +93,54 @@ export function AdsterraBanner({ size = "300x250", className = "" }: AdsterraBan
     script.dataset.adsterraInstance = reactId;
     host.appendChild(script);
 
+    const root = rootRef.current;
+    const check = () => {
+      if (hasAdCreative(root) || hasAdCreative(host)) {
+        setFilled(true);
+        setVisible(true);
+        return true;
+      }
+      return false;
+    };
+
+    const observer = new MutationObserver(() => {
+      check();
+    });
+    if (root) observer.observe(root, { childList: true, subtree: true });
+
+    const timers = [1500, 3500, 6000].map((ms) =>
+      window.setTimeout(() => {
+        if (!check()) {
+          // Keep checking until final timeout below.
+        }
+      }, ms),
+    );
+    const hideTimer = window.setTimeout(() => {
+      if (!check()) setVisible(false);
+    }, 7000);
+
     return () => {
+      observer.disconnect();
+      timers.forEach(clearTimeout);
+      clearTimeout(hideTimer);
       host.replaceChildren();
     };
   }, [config.height, config.key, config.width, envOff, reactId, size]);
 
-  if (envOff) return null;
+  if (envOff || !visible) return null;
 
   return (
     <aside
-      className={`ad-slot ad-slot-banner ad-slot-banner-${size} ${className}`.trim()}
+      ref={rootRef}
+      className={`ad-slot ad-slot-banner ad-slot-banner-${size} ${filled ? "is-filled" : "is-loading"} ${className}`.trim()}
       aria-label="Sponsored"
+      aria-hidden={!filled}
     >
-      <p className="ad-slot-label">Sponsored</p>
+      {filled ? <p className="ad-slot-label">Sponsored</p> : null}
       <div
         ref={hostRef}
         className="ad-slot-banner-host"
-        style={{ width: config.width, minHeight: config.height, maxWidth: "100%" }}
+        style={{ width: config.width, minHeight: filled ? config.height : 0, maxWidth: "100%" }}
       />
     </aside>
   );
@@ -116,14 +161,7 @@ export function AdsterraLeaderboard({ className = "" }: { className?: string }) 
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  if (!size) {
-    return (
-      <aside className={`ad-slot ad-slot-banner ${className}`.trim()} aria-hidden>
-        <p className="ad-slot-label">Sponsored</p>
-        <div className="ad-slot-banner-host" style={{ width: 320, minHeight: 50 }} />
-      </aside>
-    );
-  }
+  if (!size) return null;
 
   return <AdsterraBanner key={size} size={size} className={className} />;
 }

@@ -557,6 +557,11 @@ a {
   padding: 0.35rem 1.1rem 1.4rem;
 }
 
+.ad-slot.is-loading {
+  min-height: 0;
+  padding-block: 0;
+}
+
 .ad-slot-label {
   margin: 0 0 0.45rem;
   font-size: 0.72rem;
@@ -566,6 +571,10 @@ a {
 }
 
 .ad-slot #container-51143ea58c1b4f2d420b03ca8803cadb {
+  min-height: 0;
+}
+
+.ad-slot.is-filled #container-51143ea58c1b4f2d420b03ca8803cadb {
   min-height: 2.5rem;
 }
 
@@ -577,19 +586,28 @@ a {
 
 .ad-slot-banner-host {
   width: 300px;
-  min-height: 250px;
+  min-height: 0;
   max-width: 100%;
   overflow: hidden;
 }
 
-.ad-slot-banner-320x50 .ad-slot-banner-host {
+.ad-slot-banner.is-filled .ad-slot-banner-host {
+  min-height: 250px;
+}
+
+.ad-slot-banner-320x50.is-filled .ad-slot-banner-host {
   width: 320px;
   min-height: 50px;
 }
 
-.ad-slot-banner-728x90 .ad-slot-banner-host {
+.ad-slot-banner-728x90.is-filled .ad-slot-banner-host {
   width: min(728px, 100%);
   min-height: 90px;
+}
+
+.ad-slot-banner-300x250.is-filled .ad-slot-banner-host {
+  width: 300px;
+  min-height: 250px;
 }
 
 .path-row {
