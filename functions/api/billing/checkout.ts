@@ -6,6 +6,7 @@ import {
   PACK_CREDITS,
   corsHeaders,
   creemApiBase,
+  ensureWallet,
   isWalletId,
   json,
   productIdForPack,
@@ -22,7 +23,8 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     if (!context.env.SAMPLES_DB) {
       return json({ ok: false, error: "billing_unavailable" }, 503, headers);
     }
-    if (!context.env.CREEM_API_KEY) {
+    const apiKey = context.env.CREEM_API_KEY?.trim();
+    if (!apiKey) {
       return json({ ok: false, error: "creem_not_configured" }, 503, headers);
     }
 
@@ -30,6 +32,7 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
       pack?: string;
       wallet_id?: string;
       email?: string;
+      accepts_policy?: boolean | string | number;
     };
 
     const pack = body.pack as PackId;
@@ -42,7 +45,29 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
       return json({ ok: false, error: "invalid_wallet" }, 400, headers);
     }
 
-    const productId = productIdForPack(context.env, pack);
+    const accepts =
+      body.accepts_policy === true ||
+      body.accepts_policy === 1 ||
+      body.accepts_policy === "1" ||
+      body.accepts_policy === "true";
+    if (!accepts) {
+      return json({ ok: false, error: "policy_required" }, 400, headers);
+    }
+
+    const wallet = await ensureWallet(context.env.SAMPLES_DB, walletId);
+    if (wallet.status === "suspended") {
+      return json(
+        {
+          ok: false,
+          error: "wallet_suspended",
+          detail: "This wallet is suspended. Contact billing@ or abuse@ before purchasing again.",
+        },
+        403,
+        headers,
+      );
+    }
+
+    const productId = productIdForPack(context.env, pack)?.trim() || null;
     if (!productId) {
       return json({ ok: false, error: "product_not_configured", pack }, 503, headers);
     }
@@ -56,6 +81,7 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     const now = new Date().toISOString();
     const credits = PACK_CREDITS[pack];
     const successUrl = `${siteOrigin(context.env, context.request)}/billing/success`;
+    const apiBase = creemApiBase(context.env);
 
     await context.env.SAMPLES_DB.prepare(
       `INSERT INTO orders
@@ -78,11 +104,11 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     };
     if (email) payload.customer = { email };
 
-    const res = await fetch(`${creemApiBase(context.env)}/v1/checkouts`, {
+    const res = await fetch(`${apiBase}/v1/checkouts`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": context.env.CREEM_API_KEY,
+        "x-api-key": apiKey,
       },
       body: JSON.stringify(payload),
     });
@@ -91,7 +117,7 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
       id?: string;
       checkout_url?: string;
       error?: string;
-      message?: string;
+      message?: string | string[];
     };
 
     if (!res.ok || !data.checkout_url) {
@@ -100,10 +126,24 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
       )
         .bind(new Date().toISOString(), orderId)
         .run();
-      console.error("creem checkout failed", res.status, data);
+      const creemMsg = Array.isArray(data.message)
+        ? data.message.join("; ")
+        : data.message || data.error || `HTTP ${res.status}`;
+      console.error("creem checkout failed", res.status, apiBase, productId, data);
+
+      // Prefer 400 over 502: custom domains often strip Worker 502 response bodies.
       return json(
-        { ok: false, error: "checkout_failed", detail: data.error || data.message || res.status },
-        502,
+        {
+          ok: false,
+          error: "checkout_failed",
+          detail: creemMsg,
+          creem_status: res.status,
+          api_base: apiBase,
+          product_id: productId,
+          hint:
+            "Creem test/live must match: test key + test products → test-api; live key + live products → set CREEM_API_BASE=https://api.creem.io",
+        },
+        400,
         headers,
       );
     }

@@ -38,8 +38,10 @@ export default function PricingPage() {
         </li>
       </ol>
       <p>
-        See <Link href="/refund">Refunds</Link> and <Link href="/terms">Terms</Link>. Merchant of
-        record: Creem.
+        See <Link href="/refund">Refunds</Link> and <Link href="/terms">Terms</Link>. You must be
+        18+ to buy credits / run AI. Illegal or prohibited uploads (including any sexual content
+        involving minors) are blocked. Successful AI runs are not cash-refundable; failed or
+        safety-blocked jobs return the credit to your wallet only. Merchant of record: Creem.
       </p>
     </article>
   );

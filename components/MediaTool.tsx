@@ -8,7 +8,7 @@ import {
   track,
   valueBucket,
 } from "@/lib/analytics";
-import { AiEnhanceBar } from "@/components/AiEnhanceBar";
+import { AiEnhanceBar, type AiProgress } from "@/components/AiEnhanceBar";
 import { canvasToSampleBlob, uploadVoluntarySample } from "@/lib/sample-share";
 import {
   MAX_IMAGE_MB,
@@ -315,6 +315,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const compareWrapRef = useRef<HTMLDivElement>(null);
   const adjustBlockRef = useRef<HTMLDivElement>(null);
+  const aiBlockRef = useRef<HTMLDivElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const rafRef = useRef<number | null>(null);
   const glRef = useRef<MatchaGL | null>(null);
@@ -337,6 +338,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [postSaveShareTip, setPostSaveShareTip] = useState(false);
   const [hardCase, setHardCase] = useState(false);
   const [aiPass, setAiPass] = useState(false);
+  const [aiProgress, setAiProgress] = useState<AiProgress | null>(null);
   const aiCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const paramsRef = useRef({
     strength,
@@ -501,6 +503,16 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     }
   }, [clearStatus, closeSaveSheet, kind, ready, trackTool]);
 
+  const pickNewFile = useCallback(
+    (entry: string) => {
+      if (busy || aiProgress?.active) return;
+      trackTool("tool_upload_click", { entry });
+      if (inputRef.current) inputRef.current.value = "";
+      inputRef.current?.click();
+    },
+    [aiProgress?.active, busy, trackTool],
+  );
+
   useEffect(() => {
     trackTool("tool_view");
   }, [trackTool]);
@@ -600,6 +612,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     trackTool("tool_adjust_reveal", { reason, media_type: kind || undefined });
+  }, [kind, trackTool]);
+
+  const scrollToAi = useCallback((reason: string) => {
+    const el = aiBlockRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    trackTool("tool_ai_reveal", { reason, media_type: kind || undefined });
   }, [kind, trackTool]);
 
   useEffect(
@@ -726,6 +745,21 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     },
     [drawFrame],
   );
+
+  const handleAiProgress = useCallback((progress: AiProgress) => {
+    setAiProgress(progress.active ? progress : null);
+  }, []);
+
+  const handleAiSuccess = useCallback(() => {
+    compareWrapRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
+  const processBusy = busy || Boolean(aiProgress?.active);
+  const processTitle = aiProgress?.active ? aiProgress.text : statusText || "Working…";
+  const processFill = aiProgress?.active ? aiProgress.progress : statusProgress;
+  const processSub = aiProgress?.active
+    ? aiProgress.hint
+    : "On-device processing · usually a couple of seconds";
 
   useEffect(() => {
     if (!kind) return;
@@ -1693,7 +1727,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
   const splitPos = peekOriginal ? 100 : Math.max(0, Math.min(100, compare));
   const beforeLabel = isRemove ? "With filter" : "Original";
-  const afterLabel = isRemove ? "Filter removed" : "Matcha applied";
+  const afterLabel = aiPass ? "AI restored" : isRemove ? "Filter removed" : "Matcha applied";
   const showSplitLabels = ready && !peekOriginal && splitPos > 8 && splitPos < 92;
 
   return (
@@ -1727,7 +1761,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           )}
 
           <div
-            className={`preview-frame ${dragOver ? "is-dragover" : ""} ${ready ? "has-media" : ""} ${busy ? "is-busy" : ""}`}
+            className={`preview-frame ${dragOver ? "is-dragover" : ""} ${ready ? "has-media" : ""} ${processBusy ? "is-busy" : ""}`}
             onDragEnter={(e) => {
               e.preventDefault();
               setDragOver(true);
@@ -1743,14 +1777,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             }}
             onDrop={onDrop}
           >
-            {busy && (
+            {processBusy && (
               <div className="process-overlay" role="status" aria-live="polite">
                 <div className="process-spinner" aria-hidden />
-                <p className="process-title">{statusText || "Working…"}</p>
+                <p className="process-title">{processTitle}</p>
                 <div className="process-track" aria-hidden>
-                  <div className="process-fill" style={{ width: `${Math.max(8, statusProgress)}%` }} />
+                  <div className="process-fill" style={{ width: `${Math.max(8, processFill)}%` }} />
                 </div>
-                <p className="process-sub">On-device processing · usually a couple of seconds</p>
+                <p className="process-sub">{processSub}</p>
               </div>
             )}
 
@@ -1815,8 +1849,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   clipPath: `inset(0 0 0 ${splitPos}%)`,
                 }}
               />
-              {ready && (
+                  {ready && (
                 <>
+                  {aiPass && (
+                    <div className="preview-mode-badge" aria-live="polite">
+                      AI Restore on
+                    </div>
+                  )}
                   <div className="compare-divider" style={{ left: `${splitPos}%` }} aria-hidden>
                     <span className="compare-handle" />
                   </div>
@@ -1859,6 +1898,31 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       Hold · show original
                     </button>
                     <div className="preview-actions-end">
+                      {isRemove && (
+                        <button
+                          type="button"
+                          className="preview-chip preview-chip-ai"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            scrollToAi("preview_chip");
+                          }}
+                        >
+                          AI Restore ↓
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="preview-chip preview-chip-new"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          pickNewFile("preview_chip_new");
+                        }}
+                        disabled={busy}
+                      >
+                        New photo
+                      </button>
                       <button
                         type="button"
                         className="preview-chip preview-chip-adjust copy-mobile"
@@ -1911,13 +1975,48 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 e.target.value = "";
               }}
             />
-          </div>
+            </div>
+
+          {ready && isRemove && (
+            <div className="ai-desktop-rail copy-desktop">
+              {aiPass ? (
+                <p className="ai-desktop-rail-status is-on">
+                  <strong>AI Restore is on</strong> — right side shows the AI result (not free WebGL).
+                  Sliders below won’t change it; use New photo to try another image.
+                </p>
+              ) : (
+                <p className="ai-desktop-rail-status">
+                  Left preview uses <strong>free WebGL remove</strong>. For hard melts, run{" "}
+                  <strong>AI Restore</strong> in the right panel (or click the green chip on the
+                  image).
+                </p>
+              )}
+              <div className="ai-desktop-rail-actions">
+                <button
+                  type="button"
+                  className="btn-primary btn-compact"
+                  onClick={() => scrollToAi("desktop_rail")}
+                  disabled={processBusy}
+                >
+                  {aiPass ? "AI result · view panel" : "Go to AI Restore"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost btn-compact"
+                  onClick={() => pickNewFile("desktop_rail_new")}
+                  disabled={processBusy}
+                >
+                  New photo
+                </button>
+              </div>
+            </div>
+          )}
 
           {ready && (
             <p className="compare-hint compare-hint-desktop">
               <strong>How to compare:</strong> left = {isRemove ? "with filter" : "original"}, right ={" "}
-              {isRemove ? "filter removed" : "matcha applied"}. Drag the preview split, or press and hold
-              “Hold · show original”.
+              {aiPass ? "AI restored" : isRemove ? "filter removed (free)" : "matcha applied"}. Drag the
+              preview split, or press and hold “Hold · show original”.
             </p>
           )}
         </div>
@@ -1928,9 +2027,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <div className="engage-tip-copy">
                 {isRemove ? (
                   <>
-                    <strong>Best-effort remove.</strong> Clears green/gold cast and grain; baked liquid
-                    warp often stays. Save when the right side looks better
-                    {autoTuned ? " — auto-tuned already." : "."}
+                    <strong>Best-effort remove.</strong> Free tool clears cast; if it still looks melted,
+                    use <strong>AI Restore</strong> just below.
                   </>
                 ) : (
                   <>
@@ -1938,19 +2036,49 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   </>
                 )}
               </div>
-              <button
-                type="button"
-                className="engage-tip-dismiss copy-mobile"
-                onClick={() => {
-                  setShowTip(false);
-                  scrollToAdjust("engage_tip");
-                }}
-              >
-                Show sliders
-              </button>
+              {isRemove ? (
+                <button
+                  type="button"
+                  className="engage-tip-dismiss copy-mobile"
+                  onClick={() => {
+                    setShowTip(false);
+                    scrollToAi("engage_tip");
+                  }}
+                >
+                  Go to AI Restore
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="engage-tip-dismiss copy-mobile"
+                  onClick={() => {
+                    setShowTip(false);
+                    scrollToAdjust("engage_tip");
+                  }}
+                >
+                  Show sliders
+                </button>
+              )}
               <button type="button" className="engage-tip-dismiss copy-desktop" onClick={() => setShowTip(false)}>
                 Got it
               </button>
+            </div>
+          )}
+
+          {ready && isRemove && (
+            <div ref={aiBlockRef} id="ai-restore" className="control-block ai-enhance-block">
+              <div className="control-block-head">
+                <h2>AI Restore</h2>
+                <p>Hard gold/olive melts the free tool cannot undo — 1 credit per image.</p>
+              </div>
+              <AiEnhanceBar
+                enabled={ready}
+                captureSourceJpeg={captureSourceJpeg}
+                onAiResult={applyAiResult}
+                onPickNew={() => pickNewFile("ai_bar_new")}
+                onProgress={handleAiProgress}
+                onSuccess={handleAiSuccess}
+              />
             </div>
           )}
 
@@ -2109,14 +2237,6 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           </div>
           )}
 
-          {ready && isRemove && (
-            <AiEnhanceBar
-              enabled={ready}
-              captureSourceJpeg={captureSourceJpeg}
-              onAiResult={applyAiResult}
-            />
-          )}
-
           {ready && (
             <div className="control-block compare-block">
               <div className="control-block-head">
@@ -2226,13 +2346,10 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => {
-                      trackTool("tool_upload_click", { entry: "replace" });
-                      inputRef.current?.click();
-                    }}
+                    onClick={() => pickNewFile("replace")}
                     disabled={busy}
                   >
-                    Replace file
+                    New photo
                   </button>
                   <button type="button" className="btn-ghost" onClick={reset}>
                     Reset
@@ -2275,7 +2392,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           role="region"
           aria-label="Export actions"
         >
-          <button type="button" className="btn-primary" onClick={() => void download()} disabled={busy}>
+          <button type="button" className="btn-primary" onClick={() => void download()} disabled={processBusy}>
             {primarySaveLabel}
           </button>
           {kind === "video" && (
@@ -2283,7 +2400,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               type="button"
               className="btn-secondary"
               onClick={() => void download({ as: "video" })}
-              disabled={busy}
+              disabled={processBusy}
             >
               Export video
             </button>
@@ -2291,16 +2408,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => {
-              trackTool("tool_upload_click", { entry: "replace_dock" });
-              inputRef.current?.click();
-            }}
-            disabled={busy}
+            onClick={() => pickNewFile("replace_dock")}
+            disabled={processBusy}
           >
-            Replace
+            New photo
           </button>
-          <button type="button" className="btn-ghost" onClick={reset}>
-            Reset
+          <button type="button" className="btn-ghost" onClick={reset} disabled={processBusy}>
+            Clear
           </button>
         </div>
       )}

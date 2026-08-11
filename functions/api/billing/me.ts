@@ -4,7 +4,6 @@ import {
   type BillingEnv,
   corsHeaders,
   ensureWallet,
-  getBalance,
   isWalletId,
   json,
 } from "../../_lib/billing";
@@ -28,9 +27,18 @@ export const onRequestGet: PagesFunction<BillingEnv> = async (context) => {
       return json({ ok: false, error: "invalid_wallet" }, 400, headers);
     }
 
-    await ensureWallet(context.env.SAMPLES_DB, walletId);
-    const balance = await getBalance(context.env.SAMPLES_DB, walletId);
-    return json({ ok: true, wallet_id: walletId, balance }, 200, headers);
+    const wallet = await ensureWallet(context.env.SAMPLES_DB, walletId);
+    return json(
+      {
+        ok: true,
+        wallet_id: walletId,
+        balance: wallet.balance,
+        status: wallet.status,
+        safety_block_count: wallet.safety_block_count,
+      },
+      200,
+      headers,
+    );
   } catch (error) {
     console.error("billing me error", error);
     return json({ ok: false, error: "me_error" }, 500, headers);

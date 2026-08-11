@@ -3,17 +3,22 @@
 import {
   type BillingEnv,
   corsHeaders,
+  ensureWallet,
   getBalance,
   grantCredits,
   isWalletId,
   json,
+  recordSafetyBlock,
   spendCredits,
 } from "../../_lib/billing";
 
 const MAX_BYTES = 4 * 1024 * 1024;
-const MAX_EDGE = 768;
+const MAX_EDGE = 1024;
 const CREDIT_COST = 1;
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+
+// Paid path: Kontext Pro (~$0.04/image) — much stronger identity-preserving edits than kontext/dev.
+const FAL_MODEL = "fal-ai/flux-pro/kontext";
 
 export const onRequestOptions: PagesFunction<BillingEnv> = async (context) => {
   return new Response(null, { status: 204, headers: corsHeaders(context.request) });
@@ -22,15 +27,12 @@ export const onRequestOptions: PagesFunction<BillingEnv> = async (context) => {
 async function decodeImageMeta(
   bytes: Uint8Array,
 ): Promise<{ width: number; height: number } | null> {
-  // Minimal JPEG/PNG/WebP size sniff — full decode happens in AI provider.
   if (bytes.length < 24) return null;
-  // PNG
   if (bytes[0] === 0x89 && bytes[1] === 0x50) {
     const width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
     const height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
     return { width, height };
   }
-  // JPEG SOF scan
   if (bytes[0] === 0xff && bytes[1] === 0xd8) {
     let i = 2;
     while (i < bytes.length - 8) {
@@ -60,9 +62,19 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+const RESTORE_PROMPT =
+  "This photo has a viral TikTok matcha filter: olive-green and gold metallic color grade, " +
+  "posterized duotone, embossed/liquid-metal edges, and extra grain. " +
+  "Edit ONLY the color grade and texture artifacts. " +
+  "Restore natural skin tones, realistic hair color, and normal background colors. " +
+  "Keep the exact same person, face identity, pose, camera framing, clothing, and composition. " +
+  "Do not restyle into art, marble, wood grain, anime, or a new photo. " +
+  "Do not add objects. Photorealistic unfiltered smartphone photo. " +
+  "Refuse any request involving sexual content with minors or child sexual abuse material.";
+
 async function runFalEnhance(apiKey: string, imageBytes: Uint8Array, contentType: string) {
   const dataUrl = `data:${contentType};base64,${bytesToBase64(imageBytes)}`;
-  const res = await fetch("https://fal.run/fal-ai/flux/dev/image-to-image", {
+  const res = await fetch(`https://fal.run/${FAL_MODEL}`, {
     method: "POST",
     headers: {
       authorization: `Key ${apiKey}`,
@@ -70,22 +82,36 @@ async function runFalEnhance(apiKey: string, imageBytes: Uint8Array, contentType
     },
     body: JSON.stringify({
       image_url: dataUrl,
-      prompt:
-        "Photorealistic natural photo, remove green olive gold matcha color cast and metallic filter, keep identity and pose, realistic skin tones, clean lighting",
-      strength: 0.45,
-      num_inference_steps: 28,
+      prompt: RESTORE_PROMPT,
       guidance_scale: 3.5,
-      enable_safety_checker: true,
+      num_images: 1,
       output_format: "jpeg",
+      // Lower = stricter provider safety filtering.
+      safety_tolerance: "1",
+      enhance_prompt: false,
     }),
   });
   const data = (await res.json().catch(() => ({}))) as {
     images?: Array<{ url?: string }>;
-    detail?: string;
+    detail?: string | Array<{ msg?: string }>;
     error?: string;
+    has_nsfw_concepts?: boolean[];
   };
   if (!res.ok) {
-    throw new Error(data.detail || data.error || `fal_${res.status}`);
+    const detail =
+      typeof data.detail === "string"
+        ? data.detail
+        : Array.isArray(data.detail)
+          ? data.detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+          : data.error || `fal_${res.status}`;
+    const lower = detail.toLowerCase();
+    if (lower.includes("nsfw") || lower.includes("safety") || lower.includes("moderat")) {
+      throw new Error("content_blocked");
+    }
+    throw new Error(detail);
+  }
+  if (data.has_nsfw_concepts?.some(Boolean)) {
+    throw new Error("content_blocked");
   }
   const url = data.images?.[0]?.url;
   if (!url) throw new Error("fal_no_image");
@@ -93,6 +119,10 @@ async function runFalEnhance(apiKey: string, imageBytes: Uint8Array, contentType
   if (!imgRes.ok) throw new Error("fal_fetch_failed");
   const outType = imgRes.headers.get("content-type") || "image/jpeg";
   const buf = new Uint8Array(await imgRes.arrayBuffer());
+  // Black / near-empty frames sometimes returned when safety blanks the output.
+  if (buf.byteLength < 1200) {
+    throw new Error("content_blocked");
+  }
   return { bytes: buf, contentType: outType };
 }
 
@@ -126,6 +156,26 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     walletId = String(form.get("wallet_id") || "").trim();
     if (!isWalletId(walletId)) {
       return json({ ok: false, error: "invalid_wallet" }, 400, headers);
+    }
+
+    const acceptsPolicy = String(form.get("accepts_policy") || "").trim();
+    if (acceptsPolicy !== "1" && acceptsPolicy.toLowerCase() !== "true") {
+      return json({ ok: false, error: "policy_required" }, 400, headers);
+    }
+
+    const wallet = await ensureWallet(context.env.SAMPLES_DB, walletId);
+    if (wallet.status === "suspended") {
+      return json(
+        {
+          ok: false,
+          error: "wallet_suspended",
+          detail:
+            "This wallet is suspended for policy or safety reasons. Contact abuse@ or billing@.",
+          balance: wallet.balance,
+        },
+        403,
+        headers,
+      );
     }
 
     const file = form.get("image");
@@ -165,7 +215,11 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     });
     if (!spent.ok) {
       return json(
-        { ok: false, error: spent.error === "insufficient" ? "insufficient_credits" : "duplicate", balance: spent.balance },
+        {
+          ok: false,
+          error: spent.error === "insufficient" ? "insufficient_credits" : "duplicate",
+          balance: spent.balance,
+        },
         spent.error === "insufficient" ? 402 : 409,
         headers,
       );
@@ -175,6 +229,7 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     try {
       result = await runFalEnhance(context.env.FAL_KEY, bytes, type);
     } catch (err) {
+      const blocked = String(err).includes("content_blocked");
       await grantCredits(context.env.SAMPLES_DB, {
         walletId,
         credits: CREDIT_COST,
@@ -182,9 +237,36 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
         refId: `ai_refund:${jobId}`,
         meta: String(err),
       });
+      if (blocked) {
+        const after = await recordSafetyBlock(
+          context.env.SAMPLES_DB,
+          walletId,
+          JSON.stringify({ jobId, reason: "content_blocked" }),
+        );
+        console.error("ai enhance content_blocked", walletId, after.safety_block_count, after.status);
+        return json(
+          {
+            ok: false,
+            error: after.status === "suspended" ? "wallet_suspended" : "content_blocked",
+            detail:
+              after.status === "suspended"
+                ? "Repeated safety blocks — wallet suspended. Credit refunded for this job."
+                : "content_blocked",
+            balance: await getBalance(context.env.SAMPLES_DB, walletId),
+            safety_block_count: after.safety_block_count,
+          },
+          after.status === "suspended" ? 403 : 422,
+          headers,
+        );
+      }
       console.error("ai enhance failed", err);
       return json(
-        { ok: false, error: "ai_failed", detail: String(err), balance: await getBalance(context.env.SAMPLES_DB, walletId) },
+        {
+          ok: false,
+          error: "ai_failed",
+          detail: String(err),
+          balance: await getBalance(context.env.SAMPLES_DB, walletId),
+        },
         502,
         headers,
       );

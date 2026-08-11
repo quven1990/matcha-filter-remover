@@ -54,7 +54,7 @@ export function siteOrigin(env: BillingEnv, request: Request): string {
 }
 
 export function creemApiBase(env: BillingEnv): string {
-  return (env.CREEM_API_BASE || "https://test-api.creem.io").replace(/\/$/, "");
+  return (env.CREEM_API_BASE || "https://test-api.creem.io").trim().replace(/\/$/, "");
 }
 
 export type PackId = "starter" | "plus" | "pro";
@@ -71,7 +71,7 @@ export function productIdForPack(env: BillingEnv, pack: PackId): string | null {
     plus: env.CREEM_PRODUCT_PLUS,
     pro: env.CREEM_PRODUCT_PRO,
   };
-  const id = map[pack]?.trim();
+  const id = map[pack]?.trim().replace(/^["']|["']$/g, "");
   return id || null;
 }
 
@@ -86,13 +86,35 @@ export function isWalletId(value: string): boolean {
   return /^[a-zA-Z0-9_-]{8,80}$/.test(value);
 }
 
-export async function ensureWallet(db: D1Database, walletId: string, email?: string | null) {
+/** Auto-suspend wallet after this many safety/content blocks. */
+export const SAFETY_BLOCK_SUSPEND_THRESHOLD = 3;
+
+export type WalletStatus = "active" | "suspended";
+
+export type WalletRow = {
+  id: string;
+  balance: number;
+  email: string | null;
+  status: WalletStatus;
+  safety_block_count: number;
+};
+
+function normalizeWalletStatus(value: string | null | undefined): WalletStatus {
+  return value === "suspended" ? "suspended" : "active";
+}
+
+export async function ensureWallet(db: D1Database, walletId: string, email?: string | null): Promise<WalletRow> {
   const now = new Date().toISOString();
-  const existing = await db.prepare(`SELECT id, balance, email FROM wallets WHERE id = ?`).bind(walletId).first<{
-    id: string;
-    balance: number;
-    email: string | null;
-  }>();
+  const existing = await db
+    .prepare(`SELECT id, balance, email, status, safety_block_count FROM wallets WHERE id = ?`)
+    .bind(walletId)
+    .first<{
+      id: string;
+      balance: number;
+      email: string | null;
+      status: string | null;
+      safety_block_count: number | null;
+    }>();
   if (existing) {
     if (email && !existing.email) {
       await db
@@ -100,16 +122,102 @@ export async function ensureWallet(db: D1Database, walletId: string, email?: str
         .bind(email, now, walletId)
         .run();
     }
-    return existing;
+    return {
+      id: existing.id,
+      balance: existing.balance,
+      email: existing.email,
+      status: normalizeWalletStatus(existing.status),
+      safety_block_count: existing.safety_block_count ?? 0,
+    };
   }
   await db
     .prepare(
-      `INSERT INTO wallets (id, balance, email, creem_customer_id, created_at, updated_at)
-       VALUES (?, 0, ?, NULL, ?, ?)`,
+      `INSERT INTO wallets (id, balance, email, creem_customer_id, status, safety_block_count, created_at, updated_at)
+       VALUES (?, 0, ?, NULL, 'active', 0, ?, ?)`,
     )
     .bind(walletId, email || null, now, now)
     .run();
-  return { id: walletId, balance: 0, email: email || null };
+  return { id: walletId, balance: 0, email: email || null, status: "active", safety_block_count: 0 };
+}
+
+export async function getWallet(db: D1Database, walletId: string): Promise<WalletRow | null> {
+  const row = await db
+    .prepare(`SELECT id, balance, email, status, safety_block_count FROM wallets WHERE id = ?`)
+    .bind(walletId)
+    .first<{
+      id: string;
+      balance: number;
+      email: string | null;
+      status: string | null;
+      safety_block_count: number | null;
+    }>();
+  if (!row) return null;
+  return {
+    id: row.id,
+    balance: row.balance,
+    email: row.email,
+    status: normalizeWalletStatus(row.status),
+    safety_block_count: row.safety_block_count ?? 0,
+  };
+}
+
+export async function setWalletStatus(
+  db: D1Database,
+  walletId: string,
+  status: WalletStatus,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await ensureWallet(db, walletId);
+  await db
+    .prepare(`UPDATE wallets SET status = ?, updated_at = ? WHERE id = ?`)
+    .bind(status, now, walletId)
+    .run();
+}
+
+/** Increment safety block counter; auto-suspend at threshold. Returns updated wallet. */
+export async function recordSafetyBlock(
+  db: D1Database,
+  walletId: string,
+  meta?: string | null,
+): Promise<WalletRow> {
+  const now = new Date().toISOString();
+  await ensureWallet(db, walletId);
+  await db
+    .prepare(
+      `UPDATE wallets
+       SET safety_block_count = safety_block_count + 1,
+           status = CASE
+             WHEN safety_block_count + 1 >= ? THEN 'suspended'
+             ELSE status
+           END,
+           updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(SAFETY_BLOCK_SUSPEND_THRESHOLD, now, walletId)
+    .run();
+
+  // Audit trail without storing image bytes.
+  try {
+    await db
+      .prepare(
+        `INSERT INTO credit_ledger (id, wallet_id, delta, reason, ref_id, meta, created_at)
+         VALUES (?, ?, 0, ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        walletId,
+        "ai_safety_block",
+        `ai_safety_block:${crypto.randomUUID()}`,
+        meta || null,
+        now,
+      )
+      .run();
+  } catch {
+    /* ignore duplicate/audit failures */
+  }
+
+  const wallet = await getWallet(db, walletId);
+  return wallet || { id: walletId, balance: 0, email: null, status: "active", safety_block_count: 0 };
 }
 
 export async function getBalance(db: D1Database, walletId: string): Promise<number> {

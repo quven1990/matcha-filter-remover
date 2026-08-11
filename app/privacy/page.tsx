@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <article className="prose">
       <h1>Privacy Policy</h1>
-      <p>Last updated: August 11, 2026</p>
+      <p>Last updated: August 12, 2026</p>
       <p>
         Matcha Filter (“we”) provides an on-device photo and video toolkit at
         matchafilter.online, with optional paid AI restore credits.
@@ -25,9 +25,15 @@ export default function PrivacyPage() {
       <h3>Optional AI Restore</h3>
       <p>
         If you buy credits and run AI Restore, the selected frame is uploaded to our
-        edge function and an AI image provider solely to generate a restored still.
-        Uploads are not used for advertising or training by us. Failed jobs refund the
-        credit. See <a href="/pricing">Pricing</a> and <a href="/refund">Refunds</a>.
+        edge function and an AI image provider (currently fal.ai) solely to generate a
+        restored still. Uploads are used for that request only; we do not use them for
+        advertising or model training by us. The provider may apply automated safety
+        screening. We do not intentionally retain AI upload bytes after the response is
+        returned. Failed or safety-blocked jobs refund the credit. For safety and
+        fraud prevention we may store wallet status, safety-block event counts, and
+        related ledger metadata (not the image itself), and may suspend a wallet after
+        repeated blocks or abuse reports. See <a href="/pricing">Pricing</a>,{" "}
+        <a href="/refund">Refunds</a>, and <a href="/terms">Terms</a>.
       </p>
       <h3>Payments</h3>
       <p>
@@ -83,7 +89,10 @@ export default function PrivacyPage() {
       </p>
       <h2>Children</h2>
       <h3>Age restriction</h3>
-      <p>The service is not directed to children under 13.</p>
+      <p>
+        The service is not directed to children under 13. Purchasing credits and using AI
+        Restore requires that you are at least 18.
+      </p>
     </article>
   );
 }

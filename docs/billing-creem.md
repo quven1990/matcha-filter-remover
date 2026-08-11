@@ -37,10 +37,49 @@ Events: at least `checkout.completed`.
 npx wrangler d1 migrations apply matcha-filter-samples --remote
 ```
 
+Includes wallet safety columns (`status`, `safety_block_count`) from `0003_wallet_safety.sql`.
+
 ## Flow
-1. `/pricing` → POST `/api/billing/checkout` → Creem hosted checkout
+1. `/pricing` → POST `/api/billing/checkout` (requires `accepts_policy`) → Creem hosted checkout
 2. Webhook grants credits to `metadata.wallet_id`
 3. `/billing/success` confirms balance
-4. `/remove` → **Run AI Restore** → POST `/api/ai/enhance` (1 credit; refund on failure)
+4. `/remove` → confirm policy → **Run AI Restore** → POST `/api/ai/enhance` (1 credit; refund on failure)
 
 Free WebGL Remove/Apply never requires credits.
+
+## Refund ops checklist
+When `billing@` gets a refund request:
+
+1. Ask for Creem order / receipt id + approximate purchase time.
+2. Look up the order:
+   ```bash
+   npx wrangler d1 execute matcha-filter-samples --remote --command \
+     "SELECT id, wallet_id, pack, credits, status, creem_order_id, email, created_at FROM orders WHERE creem_order_id = 'ORDER_ID' OR id = 'ORDER_ID' LIMIT 5"
+   ```
+3. Check whether that wallet started any AI job:
+   ```bash
+   npx wrangler d1 execute matcha-filter-samples --remote --command \
+     "SELECT reason, delta, ref_id, created_at FROM credit_ledger WHERE wallet_id = 'WALLET_ID' AND reason LIKE 'ai_%' ORDER BY created_at DESC LIMIT 20"
+   ```
+4. Decision:
+   - Duplicate / processor error → refund via Creem.
+   - Within 7 days **and** no `ai_enhance_image` / AI spend rows → unused pack cash refund OK.
+   - Any successful AI delivery (or any AI job started after purchase per policy) → **deny cash refund**; point to `/refund`.
+   - Safety / failed job already auto-returned credit → not a card refund.
+
+## Abuse / chargeback SOP
+- Inbox: `abuse@matchafilter.online` (policy) / `billing@` (chargebacks).
+- **Do not** ask reporters to email CSAM image files; collect order id / wallet id / time only.
+- Suspend wallet immediately on credible abuse or chargeback:
+  ```bash
+  npx wrangler d1 execute matcha-filter-samples --remote --command \
+    "UPDATE wallets SET status = 'suspended', updated_at = datetime('now') WHERE id = 'WALLET_ID'"
+  ```
+- Suspended wallets cannot checkout or run AI (`wallet_suspended`).
+- Auto-suspend: after **3** `content_blocked` safety events (`safety_block_count`).
+- Restore only after review:
+  ```bash
+  npx wrangler d1 execute matcha-filter-samples --remote --command \
+    "UPDATE wallets SET status = 'active', updated_at = datetime('now') WHERE id = 'WALLET_ID'"
+  ```
+- Report apparent CSAM through provider / required channels; do not keep or forward illegal images in chat.
