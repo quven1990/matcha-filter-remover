@@ -9,13 +9,19 @@ export default function TermsPage() {
   return (
     <article className="prose">
       <h1>Terms of Use</h1>
-      <p>Last updated: August 9, 2026</p>
+      <p>Last updated: August 11, 2026</p>
       <h2>Service</h2>
       <h3>What we provide</h3>
       <p>
         Matcha Filter provides free, on-device tools to apply or reduce a matcha-style
-        green look. Results are best-effort and not a guaranteed restoration of any
-        original file.
+        green look, plus optional paid AI Restore credits. Results are best-effort and
+        not a guaranteed restoration of any original file.
+      </p>
+      <h3>Credits &amp; payments</h3>
+      <p>
+        AI credit packs are one-time digital purchases via Creem. Credits are consumed
+        when an AI job succeeds. See <a href="/pricing">Pricing</a> and{" "}
+        <a href="/refund">Refunds</a>.
       </p>
       <h2>Your responsibilities</h2>
       <h3>Allowed use</h3>

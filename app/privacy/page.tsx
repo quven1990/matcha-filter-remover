@@ -10,16 +10,30 @@ export default function PrivacyPage() {
   return (
     <article className="prose">
       <h1>Privacy Policy</h1>
-      <p>Last updated: August 9, 2026</p>
+      <p>Last updated: August 11, 2026</p>
       <p>
         Matcha Filter (“we”) provides an on-device photo and video toolkit at
-        matchafilter.online.
+        matchafilter.online, with optional paid AI restore credits.
       </p>
       <h2>Media you process</h2>
       <h3>On-device tools (default)</h3>
       <p>
         The default Apply and Remove tools process media in your browser. We do not
-        upload that media to our servers unless you explicitly opt in to share a sample.
+        upload that media to our servers unless you explicitly opt in to share a sample
+        or you run optional AI Restore.
+      </p>
+      <h3>Optional AI Restore</h3>
+      <p>
+        If you buy credits and run AI Restore, the selected frame is uploaded to our
+        edge function and an AI image provider solely to generate a restored still.
+        Uploads are not used for advertising or training by us. Failed jobs refund the
+        credit. See <a href="/pricing">Pricing</a> and <a href="/refund">Refunds</a>.
+      </p>
+      <h3>Payments</h3>
+      <p>
+        Credit purchases are processed by Creem (merchant of record). Creem receives
+        payment details; we store wallet id, optional email, order ids, and credit
+        ledger entries in Cloudflare D1 to deliver credits.
       </p>
       <h3>Voluntary sample sharing</h3>
       <p>

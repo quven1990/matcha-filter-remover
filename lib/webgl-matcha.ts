@@ -7,7 +7,7 @@
 export type ProcessMode = "remove" | "apply";
 
 /** Bump when Apply/Remove shaders change so open sessions pick up new programs. */
-export const PIPELINE_REV = 13;
+export const PIPELINE_REV = 14;
 
 export type ApplyParams = {
   strength: number;
@@ -402,6 +402,15 @@ void main(){
   outColor = vec4(clamp(detail, 0.0, 1.0), 1.0);
 }`;
 
+const PASS_FRAG = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 outColor;
+uniform sampler2D u_tex;
+void main(){
+  outColor = texture(u_tex, v_uv);
+}`;
+
 function compile(gl: WebGL2RenderingContext, type: number, src: string) {
   const sh = gl.createShader(type);
   if (!sh) throw new Error("shader alloc failed");
@@ -461,12 +470,14 @@ export class MatchaGL {
   canvas: HTMLCanvasElement;
   applyProg: WebGLProgram;
   removeProg: WebGLProgram;
+  passProg: WebGLProgram;
   vao: WebGLVertexArrayObject;
   tex: WebGLTexture;
   prevTex: WebGLTexture;
   private hasPrev = false;
   private applyUniforms: Record<string, WebGLUniformLocation | null>;
   private removeUniforms: Record<string, WebGLUniformLocation | null>;
+  private passUniforms: Record<string, WebGLUniformLocation | null>;
 
   constructor(canvas: HTMLCanvasElement) {
     const gl = canvas.getContext("webgl2", {
@@ -479,6 +490,7 @@ export class MatchaGL {
     this.canvas = canvas;
     this.applyProg = makeProgram(gl, APPLY_FRAG);
     this.removeProg = makeProgram(gl, REMOVE_FRAG);
+    this.passProg = makeProgram(gl, PASS_FRAG);
 
     const buf = gl.createBuffer();
     const vao = gl.createVertexArray();
@@ -517,6 +529,9 @@ export class MatchaGL {
       u_balance: gl.getUniformLocation(this.removeProg, "u_balance"),
       u_toneRange: gl.getUniformLocation(this.removeProg, "u_toneRange"),
       u_analysisMix: gl.getUniformLocation(this.removeProg, "u_analysisMix"),
+    };
+    this.passUniforms = {
+      u_tex: gl.getUniformLocation(this.passProg, "u_tex"),
     };
   }
 
@@ -582,12 +597,24 @@ export class MatchaGL {
     this.snapshotPrev();
   }
 
+  /** Draw uploaded texture with no grade (used for AI result preview). */
+  renderPass() {
+    const { gl } = this;
+    gl.useProgram(this.passProg);
+    gl.bindVertexArray(this.vao);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.tex);
+    gl.uniform1i(this.passUniforms.u_tex, 0);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+  }
+
   dispose() {
     const { gl } = this;
     gl.deleteTexture(this.tex);
     gl.deleteTexture(this.prevTex);
     gl.deleteProgram(this.applyProg);
     gl.deleteProgram(this.removeProg);
+    gl.deleteProgram(this.passProg);
     gl.deleteVertexArray(this.vao);
   }
 }

@@ -8,6 +8,7 @@ import {
   track,
   valueBucket,
 } from "@/lib/analytics";
+import { AiEnhanceBar } from "@/components/AiEnhanceBar";
 import { canvasToSampleBlob, uploadVoluntarySample } from "@/lib/sample-share";
 import {
   MAX_IMAGE_MB,
@@ -335,6 +336,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [postSaveShareTip, setPostSaveShareTip] = useState(false);
   const [hardCase, setHardCase] = useState(false);
+  const [aiPass, setAiPass] = useState(false);
+  const aiCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const paramsRef = useRef({
     strength,
     liquid,
@@ -345,6 +348,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     analysis,
     isRemove,
     kind: kind as Kind,
+    aiPass: false,
   });
 
   const trackTool = useCallback(
@@ -415,6 +419,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     analysis,
     isRemove,
     kind,
+    aiPass,
   };
 
   const accept =
@@ -480,6 +485,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setShareModalOpen(false);
     setPostSaveShareTip(false);
     setHardCase(false);
+    setAiPass(false);
+    aiCanvasRef.current = null;
     pendingShareTipRef.current = false;
     clearStatus();
     uploadReadyAtRef.current = null;
@@ -630,6 +637,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     }
 
     if (!source.width) return false;
+
+    if (p.aiPass && aiCanvasRef.current?.width) {
+      gl.upload(aiCanvasRef.current, aiCanvasRef.current.width, aiCanvasRef.current.height);
+      gl.renderPass();
+      setReady(true);
+      return true;
+    }
+
     gl.upload(source, source.width, source.height);
     const t = (performance.now() - startTimeRef.current) / 1000;
 
@@ -658,8 +673,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const loop = useCallback(() => {
     drawFrame();
     const p = paramsRef.current;
-    // Apply always animates; remove video uses temporal path each frame
-    if (p.kind === "image" && p.isRemove) {
+    // Apply always animates; remove / AI stills are single-frame
+    if (p.aiPass || (p.kind === "image" && p.isRemove)) {
       rafRef.current = null;
       return;
     }
@@ -673,15 +688,54 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     rafRef.current = requestAnimationFrame(loop);
   }, [loop]);
 
+  const captureSourceJpeg = useCallback(async () => {
+    const source = sourceCanvasRef.current;
+    if (!source?.width) return null;
+    return canvasToBlob(source, "image/jpeg", 0.9);
+  }, []);
+
+  const applyAiResult = useCallback(
+    async (blob: Blob) => {
+      const url = URL.createObjectURL(blob);
+      try {
+        const img = new Image();
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("ai_decode"));
+          img.src = url;
+        });
+        const maxSide = 1600;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("ai_canvas");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        aiCanvasRef.current = canvas;
+        setAiPass(true);
+        setCompare(100);
+        setKind("image");
+        requestAnimationFrame(() => {
+          paramsRef.current = { ...paramsRef.current, aiPass: true, kind: "image" };
+          drawFrame();
+        });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    },
+    [drawFrame],
+  );
+
   useEffect(() => {
     if (!kind) return;
-    if (isRemove && kind === "image") {
+    if (aiPass || (isRemove && kind === "image")) {
       drawFrame();
       return;
     }
     startLoop();
     return () => stopLoop();
-  }, [kind, isRemove, strength, liquid, grain, neutralize, denoise, detail, analysis, drawFrame, startLoop]);
+  }, [kind, isRemove, aiPass, strength, liquid, grain, neutralize, denoise, detail, analysis, drawFrame, startLoop]);
 
   // Seamless preview loop: when the clip wraps, clear temporal history so end≠start doesn't smear.
   useEffect(() => {
@@ -949,11 +1003,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setShareModalOpen(false);
     setPostSaveShareTip(false);
     setHardCase(false);
+    setAiPass(false);
+    aiCanvasRef.current = null;
     pendingShareTipRef.current = false;
-    stopLoop();
-    clearObjectUrl();
-    setReady(false);
-    setKind(null);
     startTimeRef.current = performance.now();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -2055,6 +2107,14 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               </div>
             )}
           </div>
+          )}
+
+          {ready && isRemove && (
+            <AiEnhanceBar
+              enabled={ready}
+              captureSourceJpeg={captureSourceJpeg}
+              onAiResult={applyAiResult}
+            />
           )}
 
           {ready && (
