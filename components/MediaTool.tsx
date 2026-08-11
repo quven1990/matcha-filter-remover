@@ -287,12 +287,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [kind, setKind] = useState<Kind>(null);
   const [fileName, setFileName] = useState("");
   const [sourceExt, setSourceExt] = useState("");
-  const [strength, setStrength] = useState(88);
-  const [liquid, setLiquid] = useState(84);
-  const [grain, setGrain] = useState(52);
-  const [neutralize, setNeutralize] = useState(82);
-  const [denoise, setDenoise] = useState(55);
-  const [detail, setDetail] = useState(48);
+  const [strength, setStrength] = useState(90);
+  const [liquid, setLiquid] = useState(42);
+  const [grain, setGrain] = useState(48);
+  const [neutralize, setNeutralize] = useState(88);
+  const [denoise, setDenoise] = useState(62);
+  const [detail, setDetail] = useState(36);
   const [compare, setCompare] = useState(50);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UploadIssue | null>(null);
@@ -1909,9 +1909,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <p>
                 {isRemove
                   ? autoTuned
-                    ? "Auto-tuned for green/gold cast. Warp may remain — save when it looks better."
-                    : "Reduce green/gold cast and grain. Liquid warp is often permanent in screenshots."
-                  : "Drag the sliders to tune liquid matcha look."}
+                    ? "Auto-tuned for gold/olive cast + emboss. Heavy warp may remain — save when it looks better."
+                    : "Kill gold/olive duotone, flatten ink edges, reduce grain. Extreme warp is often permanent."
+                  : "Gold/olive metal bake by default. Raise Liquid motion only if you want stronger melt."}
               </p>
             </div>
 
@@ -1988,9 +1988,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   className="btn-ghost btn-compact"
                   disabled={!ready || busy}
                   onClick={() => {
-                    setNeutralize(96);
-                    setDenoise(72);
-                    setDetail(42);
+                    setNeutralize(98);
+                    setDenoise(78);
+                    setDetail(28);
                     setCompare(50);
                     setAutoTuned(false);
                     trackTool("tool_preset_click", {
