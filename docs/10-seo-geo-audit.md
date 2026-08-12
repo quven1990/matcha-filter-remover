@@ -42,7 +42,7 @@
 |---|---|
 | 生产 HTTPS / 301 | `[待确认]` 未部署 |
 | GSC 验证 + 提交 sitemap | `[BLOCKED: SETUP_REQUIRED]` |
-| Bing Webmaster / IndexNow | `[BLOCKED: SETUP_REQUIRED]` |
+| Bing Webmaster / IndexNow | 已接 IndexNow key 文件 + `npm run indexnow`（deploy 后自动提交 sitemap） |
 | GA4 / Clarity | `[待确认]` |
 | OG 分享图 `og:image` | P1 缺失 |
 | Cloudflare Crawler Hints | 部署后开 |
