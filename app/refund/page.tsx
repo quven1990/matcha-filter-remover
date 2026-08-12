@@ -45,7 +45,8 @@ export default function RefundPage() {
         <li>Change of mind after any AI job was started.</li>
         <li>
           Chargebacks filed instead of contacting us first may lead to wallet suspension while we
-          investigate. Suspended wallets cannot buy credits or run AI Restore until reviewed.
+          investigate. Suspended wallets cannot buy credits or run AI Restore until reviewed, and
+          are not entitled to cash refunds for credits already successfully consumed.
         </li>
       </ul>
 
