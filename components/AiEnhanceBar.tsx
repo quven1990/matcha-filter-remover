@@ -136,7 +136,8 @@ export function AiEnhanceBar({
     if (!policyOk) {
       track("ai_enhance_blocked", { reason: "no_policy" });
       setMessageTone("bad");
-      setMessage("Confirm the content policy before running AI Restore.");
+      setMessage("Check the box above to confirm this media is allowed, then tap Run again.");
+      document.getElementById("ai-policy-agree")?.focus();
       return;
     }
     if (balance !== null && balance < AI_IMAGE_CREDIT_COST) {
@@ -245,16 +246,25 @@ export function AiEnhanceBar({
 
   const noCredits = balance !== null && balance < AI_IMAGE_CREDIT_COST;
   const suspended = walletStatus === "suspended";
-  const runDisabled = busy || noCredits || !policyOk || suspended;
+  // Keep clickable when policy is unchecked so we can show a message (disabled buttons swallow clicks).
+  const runDisabled = busy || noCredits || suspended;
+  const needsPolicy = !policyOk && !busy && !suspended && !noCredits;
 
   return (
     <div className={`ai-enhance-bar ${busy ? "is-busy" : ""}`} aria-busy={busy}>
-      <label className="ai-enhance-agree">
+      <label
+        className={`ai-enhance-agree ${message && !policyOk ? "is-attention" : ""}`}
+        htmlFor="ai-policy-agree"
+      >
         <input
+          id="ai-policy-agree"
           type="checkbox"
           checked={policyOk}
           disabled={busy || suspended}
-          onChange={(e) => setPolicyOk(e.target.checked)}
+          onChange={(e) => {
+            setPolicyOk(e.target.checked);
+            if (e.target.checked) setMessage(null);
+          }}
         />
         <span>
           I confirm I have rights to this media and will not run AI Restore on NSFW, adult,
@@ -268,8 +278,9 @@ export function AiEnhanceBar({
         </span>
         <button
           type="button"
-          className="btn-primary"
+          className={`btn-primary ${needsPolicy ? "is-needs-policy" : ""}`}
           disabled={runDisabled}
+          aria-describedby={!policyOk ? "ai-policy-agree" : undefined}
           onClick={() => void runEnhance()}
         >
           {busy
