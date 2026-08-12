@@ -143,7 +143,12 @@ export function AiEnhanceBar({
     if (balance !== null && balance < AI_IMAGE_CREDIT_COST) {
       track("ai_enhance_blocked", { reason: "no_credits" });
       setMessageTone("bad");
-      setMessage("No credits left — buy a pack to run AI restore.");
+      setMessage(
+        PAYMENTS_ENABLED
+          ? "No credits left — tap Buy credits below, then come back to run AI Restore."
+          : "No credits left — checkout is paused right now. Check Pricing for updates.",
+      );
+      document.getElementById("ai-buy-credits")?.focus();
       return;
     }
 
@@ -246,8 +251,8 @@ export function AiEnhanceBar({
 
   const noCredits = balance !== null && balance < AI_IMAGE_CREDIT_COST;
   const suspended = walletStatus === "suspended";
-  // Keep clickable when policy is unchecked so we can show a message (disabled buttons swallow clicks).
-  const runDisabled = busy || noCredits || suspended;
+  // Only block while a job is running — other blockers need a click so we can show feedback.
+  const runDisabled = busy;
   const needsPolicy = !policyOk && !busy && !suspended && !noCredits;
 
   return (
@@ -297,8 +302,9 @@ export function AiEnhanceBar({
           </button>
         )}
         <Link
+          id="ai-buy-credits"
           href="/pricing"
-          className={`btn-ghost ${noCredits && PAYMENTS_ENABLED ? "is-emphasis" : ""}`}
+          className={`btn-ghost ${noCredits ? "is-emphasis" : ""} ${message && noCredits ? "is-attention-link" : ""}`}
           onClick={() => track("ai_pricing_click")}
           aria-disabled={busy || undefined}
         >

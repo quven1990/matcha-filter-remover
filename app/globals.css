@@ -1227,6 +1227,10 @@ a {
   font-weight: 650;
 }
 
+.ai-enhance-bar-actions .btn-ghost.is-attention-link {
+  box-shadow: 0 0 0 2px color-mix(in srgb, #c45c3e 45%, transparent);
+}
+
 .ai-enhance-bar-note {
   margin: 0;
   color: var(--ink-soft);
