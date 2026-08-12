@@ -3,9 +3,9 @@ import Link from "next/link";
 import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
 
 export const metadata: Metadata = {
-  title: "How to Remove a Matcha Filter from a Photo or Video",
+  title: "How to Clean or Remove a Matcha Filter (Free)",
   description:
-    "Step-by-step: reduce a matcha green filter online with Matcha Filter Remover. Free, on-device, honest about limits.",
+    "How to clean a matcha filter from a photo or video — free online, no signup. Step-by-step with Matcha Filter Remover. Honest about limits.",
   alternates: { canonical: "/guide/how-to-remove-matcha-filter" },
 };
 
@@ -13,9 +13,9 @@ export default function HowToRemovePage() {
   const howToJson = {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to remove a matcha filter from a photo or video",
+    name: "How to clean or remove a matcha filter from a photo or video",
     description:
-      "Reduce a viral matcha green filter online with Matcha Filter Remover. Best-effort, on-device cleanup.",
+      "Free online steps to clean a matcha filter with Matcha Filter Remover. Best-effort, on-device cleanup.",
     totalTime: "PT2M",
     tool: {
       "@type": "HowToTool",
@@ -58,14 +58,15 @@ export default function HowToRemovePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(howToJson) }}
       />
       <p className="eyebrow">Guide</p>
-      <h1>How to Remove a Matcha Filter</h1>
+      <h1>How to Clean or Remove a Matcha Filter</h1>
 
       <div className="answer-box prose-answer">
         <h2>Short answer</h2>
         <p>
-          Open <Link href="/remove">Matcha Filter Remover</Link>, upload a photo or short
-          video, tune the sliders, compare sides, and download. Expect a clearer green cast —
-          not a perfect original rebuild.
+          To clean a matcha filter for free: open{" "}
+          <Link href="/remove">Matcha Filter Remover</Link>, upload a photo or short video, run
+          Remove effect, compare sides, and download. No signup. Expect a clearer green cast — not
+          a perfect original rebuild.
         </p>
       </div>
 
@@ -86,11 +87,19 @@ export default function HowToRemovePage() {
         Use the compare split to check With filter vs Filter removed, then download the
         result.
       </p>
+      <h3>5. Optional: AI Restore for hard melts</h3>
+      <p>
+        If the free sliders still look like liquid metal, use AI Restore on the still (18+).
+        Videos: AI restores the <strong>current frame only</strong>. Card checkout may be paused;
+        the free remover still works. See{" "}
+        <Link href="/remove">Matcha Filter Remover</Link>.
+      </p>
 
       <h2>Honest limits</h2>
       <h3>What you should expect</h3>
       <p>
-        A cleaner green cast and less grain on many exports — not a perfect original rebuild.
+        Free Remove: cleaner green cast and less grain. AI Restore: stronger still for heavy
+        melts — still not a perfect original rebuild.
       </p>
       <h3>What cannot be recovered</h3>
       <p>

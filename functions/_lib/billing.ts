@@ -16,6 +16,12 @@ export type BillingEnv = {
   FAL_KEY?: string;
 };
 
+/**
+ * Temporary kill-switch while Creem Live merchant verification is pending.
+ * Keep in sync with `lib/billing-packs.ts` → PAYMENTS_ENABLED.
+ */
+export const PAYMENTS_ENABLED = false;
+
 export function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {
     status,

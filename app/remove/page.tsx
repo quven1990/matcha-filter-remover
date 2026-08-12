@@ -2,36 +2,66 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AdsterraBanner } from "@/components/AdsterraBanner";
 import { MediaTool } from "@/components/MediaTool";
+import { PAYMENTS_ENABLED } from "@/lib/billing-packs";
 
 export const metadata: Metadata = {
-  title: "Matcha Filter Remover — Reduce the Green Effect Online",
+  title: "Free Matcha Filter Remover — Clean the Green Effect Online",
   description:
-    "Free matcha filter remover for photos and short videos. Reduce green cast, grain, and harsh contrast on-device. Cannot reveal hidden or censored detail.",
+    "Free matcha filter remover — no signup. Clean light green cast on-device; optional AI Restore for heavy liquid-metal melts (18+). Cannot reveal hidden or censored detail.",
   alternates: { canonical: "/remove" },
   openGraph: {
-    title: "Matcha Filter Remover",
+    title: "Free Matcha Filter Remover — Clean Online",
     description:
-      "Reduce viral matcha green cast and grain on-device. Free, private, best-effort cleanup.",
+      "Free on-device matcha cleanup, plus optional AI Restore for hard melts. Cannot reveal censored detail.",
     url: "https://matchafilter.online/remove",
   },
 };
 
+const aiCheckoutNote = PAYMENTS_ENABLED
+  ? "Buy credits on Pricing, confirm you are 18+, then run AI Restore on this page (1 credit per still / current video frame)."
+  : "AI Restore checkout is temporarily paused while live billing is enabled. The free on-device remover still works.";
+
 const faq = [
   {
     q: "What is a matcha filter remover?",
-    a: "A tool that reduces the viral matcha green tint, grain, and harsh contrast on a saved photo or video so the frame is clearer.",
+    a: "A free online tool to remove or clean a viral matcha filter from a saved photo, screenshot, or short video. The default remover reduces green/olive tint, grain, and harsh contrast in your browser. Optional AI Restore is for heavy liquid-metal melts the free tool cannot undo.",
+  },
+  {
+    q: "Is matcha filter removal the same as a matcha effect remover?",
+    a: "Yes — people also search remove matcha filter, matcha filter removal, matcha effect remover, and clean filter matcha. They all mean this job: reduce the baked-in green effect on a file you can edit.",
+  },
+  {
+    q: "Is the matcha filter remover free?",
+    a: "Yes. The default on-device remover is free — no signup, no card. Optional AI Restore uses credits when checkout is open, and only for hard melts.",
+  },
+  {
+    q: "When should I use free Remove vs AI Restore?",
+    a: "Use free Remove for a green/olive color cast, grain, and harsh contrast. Use AI Restore when the filter melted skin into liquid metal, moss, or heavy emboss and the free sliders still look fake. AI is best-effort, 18+, and does not uncover censored detail. " +
+      aiCheckoutNote,
+  },
+  {
+    q: "Does AI Restore work on video?",
+    a: "Free Remove can process a short video on-device. AI Restore only restores the current frame (a still), not the whole clip.",
+  },
+  {
+    q: "How do I clean a matcha filter?",
+    a: "Upload the photo or clip and run Remove effect first. That is how you clean a light matcha filter online. If the melt is still extreme, try AI Restore when available. It will not uncover censored or hidden detail.",
+  },
+  {
+    q: "Can I remove a matcha filter from a TikTok screenshot?",
+    a: "Yes. Save a screenshot or photo, upload it here, run Remove effect, and compare sides. For a hard melt, AI Restore (when checkout is open) can try a stronger still restore. Results are best-effort — not a perfect original file.",
   },
   {
     q: "Can this restore the exact original TikTok file?",
-    a: "No. Once an effect is baked into an export, missing detail cannot be recovered perfectly. This tool makes a best-effort cleanup of what is still visible.",
+    a: "No. Once an effect is baked into an export, missing detail cannot be recovered perfectly. Free Remove is color/texture cleanup. AI Restore is a best-effort reconstruction, not the original pixels.",
   },
   {
     q: "Can it reveal hidden or censored content behind the filter?",
-    a: "No. It does not uncover masked, painted-over, or NSFW-obscured detail. It only adjusts visible pixels.",
+    a: "No. Neither the free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. AI Restore is 18+ and blocks prohibited uploads.",
   },
   {
     q: "Do you upload my media?",
-    a: "Default processing stays in your browser. You can optionally share a compressed sample after upload if you opt in — see Privacy.",
+    a: "No for the default on-device remover — it stays in your browser. If you run AI Restore, the selected still is sent to our edge function and an AI provider for that job only. See Privacy.",
   },
   {
     q: "Is Matcha Filter affiliated with TikTok?",
@@ -50,7 +80,7 @@ export default function RemovePage() {
         operatingSystem: "Web Browser",
         url: "https://matchafilter.online/remove",
         description:
-          "Free on-device matcha filter remover for photos and short videos. Reduces green cast and grain without uploading media.",
+          "Free on-device matcha filter remover plus optional AI Restore for heavy melts. Photos, screenshots, and short videos. No signup for the free tool.",
         offers: {
           "@type": "Offer",
           price: "0",
@@ -69,7 +99,8 @@ export default function RemovePage() {
       {
         "@type": "HowTo",
         name: "How to use Matcha Filter Remover",
-        description: "Reduce a viral matcha green filter from a photo or short video on-device.",
+        description:
+          "Free online matcha filter removal, with optional AI Restore for heavy liquid-metal melts.",
         step: [
           {
             "@type": "HowToStep",
@@ -83,8 +114,13 @@ export default function RemovePage() {
           },
           {
             "@type": "HowToStep",
-            name: "Adjust if needed",
+            name: "Run free Remove effect",
             text: "Tune Color neutralize, Noise reduction, and Detail restore, then compare With filter vs Filter removed.",
+          },
+          {
+            "@type": "HowToStep",
+            name: "Optional: AI Restore for hard melts",
+            text: "If the free tool still looks melted, run AI Restore on the still (18+). Video AI restores the current frame only.",
           },
           {
             "@type": "HowToStep",
@@ -105,16 +141,27 @@ export default function RemovePage() {
       <MediaTool
         mode="remove"
         title="Matcha Filter Remover"
-        subtitle="Upload a matcha-green clip or screenshot. We reduce the tint and grain so the frame is easier to read — best effort, on your device."
+        subtitle="Free on-device cleanup for green cast and grain. Optional AI Restore for heavy liquid-metal melts (18+). Upload a photo, TikTok screenshot, or short video."
       />
 
       <section className="section answer-box">
         <h2>Quick answer</h2>
         <p>
-          <strong>Matcha Filter Remover</strong> is a free, on-device tool that reduces the
-          viral matcha green cast, grain, and harsh contrast on a saved photo or short
-          video. It cannot perfectly restore the original file or reveal hidden/censored
-          content.
+          <strong>Matcha Filter Remover</strong> is a <strong>free</strong> online tool to{" "}
+          <strong>clean a matcha filter</strong> (also searched as remove matcha filter, matcha
+          effect remover, or clean filter matcha). No signup. Start with the on-device remover for
+          green/olive cast and grain. If the look is a heavy liquid-metal melt, optional{" "}
+          <strong>AI Restore</strong> can try a stronger still (18+). Neither path restores the
+          exact original file or reveals hidden/censored content.
+        </p>
+      </section>
+
+      <section className="section">
+        <h2>Clean a matcha filter (free, no signup)</h2>
+        <p>
+          If you searched <em>clean filter matcha</em> or <em>matcha filter remover free</em>, this
+          is the page: run the free on-device remover, compare With filter vs Filter removed, then
+          download. No account.
         </p>
       </section>
 
@@ -138,16 +185,47 @@ export default function RemovePage() {
       </section>
 
       <section className="section">
+        <h2>Free Remove vs AI Restore</h2>
+        <h3>Free on-device Remove</h3>
+        <p>
+          Best for a green/olive color grade, extra grain, and harsh contrast. Runs in your
+          browser — no account, no upload. Short videos are processed locally.
+        </p>
+        <h3>Optional AI Restore</h3>
+        <p>
+          Best when matcha has melted into liquid metal, mossy texture, or heavy emboss and the
+          free sliders still look fake. AI Restore uses 1 credit per still, is 18+, and for video
+          restores <strong>the current frame only</strong>. It is a best-effort reconstruction, not
+          the original file, and will not unblur or uncover censored areas.{" "}
+          {PAYMENTS_ENABLED ? (
+            <>
+              Credits: <Link href="/pricing">Pricing</Link>.
+            </>
+          ) : (
+            <>
+              Card checkout is temporarily paused; the free remover still works. See{" "}
+              <Link href="/pricing">Pricing</Link> when live billing reopens.
+            </>
+          )}
+        </p>
+      </section>
+
+      <section className="section">
         <h2>What it can and cannot fix</h2>
-        <h3>What it can reduce</h3>
+        <h3>What the free tool can reduce</h3>
         <p>
           Green or yellow cast, mild film grain, and harsh contrast are often reducible on a
           finished export.
         </p>
-        <h3>What it cannot restore</h3>
+        <h3>What AI Restore can try</h3>
         <p>
-          Warped geometry, painted-over regions, and detail that was never in the file cannot
-          be recovered. This is color/texture cleanup — not identity reconstruction.
+          Heavier liquid-metal / embossed matcha stills that the free tool cannot undo — same
+          person, pose, and framing, more natural color and texture. Still best-effort.
+        </p>
+        <h3>What neither can restore</h3>
+        <p>
+          Painted-over or censored regions, missing original pixels, and NSFW-obscured detail
+          cannot be recovered. Do not upload prohibited media.
         </p>
       </section>
 
@@ -155,14 +233,16 @@ export default function RemovePage() {
         <h2>Free, private, no account</h2>
         <h3>On-device by default</h3>
         <p>
-          The default remover runs in your browser. No signup is required. Media stays on-device
-          unless you explicitly opt in to share a compressed sample.
+          This matcha filter remover is free to use online with no signup. The default remover
+          runs in your browser. Media stays on-device unless you explicitly opt in to share a
+          compressed sample.
         </p>
         <h3>Related guides</h3>
         <p>
           See also{" "}
-          <Link href="/guide/how-to-remove-matcha-filter">how to remove a matcha filter</Link>{" "}
-          and <Link href="/apply">apply matcha filter</Link>.
+          <Link href="/guide/how-to-remove-matcha-filter">how to remove a matcha filter</Link>,{" "}
+          <Link href="/apply">apply matcha filter</Link>, and{" "}
+          <Link href="/pricing">AI Restore credits</Link>.
         </p>
       </section>
 

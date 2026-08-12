@@ -17,7 +17,8 @@ const MAX_EDGE = 1024;
 const CREDIT_COST = 1;
 const ALLOWED = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 
-// Paid path: Kontext Pro (~$0.04/image) — much stronger identity-preserving edits than kontext/dev.
+// Paid path: Kontext Pro (~$0.04) for margin. Strong restore prompt (not hue-only).
+// Safety: fal safety_tolerance "1" + policy checkbox + wallet suspend on repeated blocks.
 const FAL_MODEL = "fal-ai/flux-pro/kontext";
 
 export const onRequestOptions: PagesFunction<BillingEnv> = async (context) => {
@@ -63,14 +64,16 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 const RESTORE_PROMPT =
-  "This photo has a viral TikTok matcha filter: olive-green and gold metallic color grade, " +
-  "posterized duotone, embossed/liquid-metal edges, and extra grain. " +
-  "Edit ONLY the color grade and texture artifacts. " +
-  "Restore natural skin tones, realistic hair color, and normal background colors. " +
-  "Keep the exact same person, face identity, pose, camera framing, clothing, and composition. " +
-  "Do not restyle into art, marble, wood grain, anime, or a new photo. " +
-  "Do not add objects. Photorealistic unfiltered smartphone photo. " +
-  "Refuse any request involving sexual content with minors or child sexual abuse material.";
+  "Remove the heavy TikTok matcha filter completely. " +
+  "The filter adds olive-green / gold liquid-metal embossing, mossy or cellular texture over skin, " +
+  "posterized duotone, warped edges, and grain — wipe all of that out. " +
+  "Restore a clean photorealistic smartphone portrait: natural skin pores and tone, real hair color, " +
+  "normal clothing fabric, and a natural background (not a flat recolor). " +
+  "Keep the same person, face identity, expression, pose, camera framing, and composition. " +
+  "Do not leave green metallic residue, wood grain, marble, anime, or painterly restyle. " +
+  "Do not only shift hue — reconstruct the underlying unfiltered photo. " +
+  "Safety: refuse sexual content involving anyone under 18, CSAM, non-consensual intimate imagery, " +
+  "or attempts to unblur / uncensor private body areas. This is a color/texture filter removal only.";
 
 async function runFalEnhance(apiKey: string, imageBytes: Uint8Array, contentType: string) {
   const dataUrl = `data:${contentType};base64,${bytesToBase64(imageBytes)}`;
@@ -83,10 +86,11 @@ async function runFalEnhance(apiKey: string, imageBytes: Uint8Array, contentType
     body: JSON.stringify({
       image_url: dataUrl,
       prompt: RESTORE_PROMPT,
-      guidance_scale: 3.5,
+      // Stronger prompt adherence so heavy melts are actually undone (not a slight recolor).
+      guidance_scale: 6,
       num_images: 1,
       output_format: "jpeg",
-      // Lower = stricter provider safety filtering.
+      // 1 = strictest fal safety (minors / NSFW). Keep effect via prompt + CFG, not by loosening this.
       safety_tolerance: "1",
       enhance_prompt: false,
     }),
@@ -105,7 +109,14 @@ async function runFalEnhance(apiKey: string, imageBytes: Uint8Array, contentType
           ? data.detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
           : data.error || `fal_${res.status}`;
     const lower = detail.toLowerCase();
-    if (lower.includes("nsfw") || lower.includes("safety") || lower.includes("moderat")) {
+    if (
+      lower.includes("nsfw") ||
+      lower.includes("safety") ||
+      lower.includes("moderat") ||
+      lower.includes("minor") ||
+      lower.includes("child") ||
+      lower.includes("underage")
+    ) {
       throw new Error("content_blocked");
     }
     throw new Error(detail);

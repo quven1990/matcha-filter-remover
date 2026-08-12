@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AI_IMAGE_CREDIT_COST } from "@/lib/billing-packs";
+import { AI_IMAGE_CREDIT_COST, PAYMENTS_ENABLED } from "@/lib/billing-packs";
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { track } from "@/lib/analytics";
 
@@ -286,11 +286,11 @@ export function AiEnhanceBar({
         )}
         <Link
           href="/pricing"
-          className={`btn-ghost ${noCredits ? "is-emphasis" : ""}`}
+          className={`btn-ghost ${noCredits && PAYMENTS_ENABLED ? "is-emphasis" : ""}`}
           onClick={() => track("ai_pricing_click")}
           aria-disabled={busy || undefined}
         >
-          Buy credits
+          {PAYMENTS_ENABLED ? "Buy credits" : "Credits soon"}
         </Link>
       </div>
 

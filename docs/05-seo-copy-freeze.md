@@ -3,7 +3,7 @@
 - 项目：`matcha-filter`
 - 域名：`https://matchafilter.online`
 - 阶段：`05-copy`
-- 日期：2026-08-09
+- 日期：2026-08-09（`/remove` title/FAQ 更新：2026-08-12）
 - 语言：English (US)
 - 状态：`DONE` — 设计前冻结；改词须走变更记录
 - 上游：`docs/02-prd.md`、`docs/03-pricing.md`、`docs/04-compliance.md`
@@ -24,11 +24,11 @@
 
 ## `/` Home
 
-**title:** Matcha Filter — Viral Matcha Look, Apply or Remove Online  
-**meta:** Matcha Filter is a private browser toolkit to apply the viral matcha green effect or reduce it from photos and videos — free, on-device, no account.
+**title:** Matcha Filter Online — Apply or Remove the Viral Look  
+**meta:** Matcha filter online: apply the viral green look or remove it from photos and videos — free in your browser, no account.
 
 **H1:** Matcha Filter  
-**sub:** Apply the viral green look, or dial it back when you need a clearer frame — processed on your device.
+**sub:** Matcha filter online — apply the look or remove a saved viral green clip in your browser. Free, private, best-effort.
 
 **CTA primary:** Remove Matcha Filter → `/remove`  
 **CTA secondary:** Apply Matcha Filter → `/apply`
@@ -44,20 +44,22 @@
 
 ## `/remove` (PRIMARY MONEY PAGE)
 
-**title:** Matcha Filter Remover — Reduce the Green Effect Online  
-**meta:** Free matcha filter remover for photos and short videos. Reduce green cast, grain, and harsh contrast on-device. Cannot reveal hidden or censored detail.
+**title:** Free Matcha Filter Remover — Clean the Green Effect Online  
+**meta:** Free matcha filter remover — no signup. Clean light green cast on-device; optional AI Restore for heavy liquid-metal melts (18+). Cannot reveal hidden or censored detail.
 
 **H1:** Matcha Filter Remover  
-**sub:** Upload a matcha-green clip or screenshot. We reduce the tint and grain so the frame is easier to read — best effort, on your device.
+**sub:** Free on-device cleanup for green cast and grain. Optional AI Restore for heavy liquid-metal melts (18+). Upload a photo, TikTok screenshot, or short video.
 
 **CTA:** Upload & Remove  
 **Secondary:** Compare before / after
 
 **H2:**
-1. How the remover works
-2. What it can and cannot fix
-3. Free, private, no account
-4. FAQ
+1. Clean a matcha filter (free, no signup)
+2. How the remover works
+3. Free Remove vs AI Restore
+4. What it can and cannot fix
+5. Free, private, no account
+6. FAQ
 
 **Tool microcopy:**
 - Drop zone：`Drop a photo or short video` / `JPG, PNG, WebP, MP4 · stays on your device`
@@ -67,35 +69,56 @@
 **FAQ (freeze answers):**
 
 1. **What is a matcha filter remover?**  
-   A tool that reduces the viral matcha green tint, grain, and harsh contrast on a saved photo or video so the frame is clearer.
+   A free online tool to remove or clean a viral matcha filter. Default remover = on-device color/grain. Optional AI Restore = heavy liquid-metal melts (18+).
 
-2. **Can this restore the exact original TikTok file?**  
-   No. Once an effect is baked into an export, missing detail cannot be recovered perfectly. This tool makes a best-effort cleanup of what is still visible.
+2. **Is matcha filter removal the same as a matcha effect remover?**  
+   Yes — remove matcha filter, matcha filter removal, matcha effect remover, and clean filter matcha all mean this job.
 
-3. **Can it reveal hidden or censored content behind the filter?**  
-   No. It does not uncover masked, painted-over, or NSFW-obscured detail. It only adjusts visible pixels.
+3. **Is the matcha filter remover free?**  
+   Yes. Default on-device remover is free — no signup, no card. AI Restore uses credits when checkout is open.
 
-4. **Do you upload my media?**  
-   No for the default on-device remover. Processing stays in your browser.
+4. **When should I use free Remove vs AI Restore?**  
+   Free = color cast / grain. AI Restore = heavy melt the sliders cannot undo. 18+, current frame only on video. Checkout may be paused.
 
-5. **Is Matcha Filter affiliated with TikTok?**  
+5. **Does AI Restore work on video?**  
+   Free Remove can do short video locally. AI Restore = current frame still only.
+
+6. **How do I clean a matcha filter?**  
+   Upload and run Remove effect first; AI Restore only if still melted. Will not uncover censored detail.
+
+7. **Can I remove a matcha filter from a TikTok screenshot?**  
+   Yes. Upload a screenshot or photo and run Remove effect. Best-effort, not a perfect original.
+
+8. **Can this restore the exact original TikTok file?**  
+   No. Free Remove is color/texture cleanup. AI Restore is best-effort reconstruction, not original pixels.
+
+9. **Can it reveal hidden or censored content behind the filter?**  
+   No. Neither free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. AI is 18+ and blocks prohibited uploads.
+
+10. **Do you upload my media?**  
+    No for default on-device remover. AI Restore sends the selected still to our edge + AI provider for that job only.
+
+11. **Is Matcha Filter affiliated with TikTok?**  
    No. Independent tool. Not endorsed by TikTok.
+
+**Change log (2026-08-12):** GSC cluster + snippet pass; then product honesty — Free Remove vs AI Restore (18+, frame-only, checkout pause note). Compliance: still no reveal/uncensor claims.
 
 **HowTo steps (schema):**
 1. Open Matcha Filter Remover  
 2. Upload your photo or short video  
-3. Adjust strength if needed  
-4. Download the cleaned result  
+3. Run free Remove effect  
+4. Optional: AI Restore for hard melts (18+, current frame only)  
+5. Download the cleaned result  
 
 ---
 
 ## `/apply`
 
 **title:** Matcha Filter Online — Apply the Viral Green Effect  
-**meta:** Apply a matcha-style green look to photos and videos in your browser. Free on-device matcha filter — no TikTok account required.
+**meta:** Matcha filter online: apply a viral green look to photos and videos in your browser. Free on-device — no TikTok account required.
 
 **H1:** Apply Matcha Filter  
-**sub:** Turn an ordinary clip into the soft green, grainy matcha vibe — processed locally.
+**sub:** Matcha filter online — turn an ordinary clip into the soft green, grainy vibe. Processed locally, free.
 
 **CTA:** Upload & Apply  
 
@@ -131,15 +154,16 @@
 
 ## `/guide/how-to-remove-matcha-filter`
 
-**title:** How to Remove a Matcha Filter from a Photo or Video  
-**meta:** Step-by-step: reduce a matcha green filter online with Matcha Filter Remover. Free, on-device, honest about limits.
+**title:** How to Clean or Remove a Matcha Filter (Free)  
+**meta:** How to clean a matcha filter from a photo or video — free online, no signup. Step-by-step with Matcha Filter Remover. Honest about limits.
 
-**H1:** How to Remove a Matcha Filter  
+**H1:** How to Clean or Remove a Matcha Filter  
 **steps:**
 1. Save or screenshot the clip you have rights to edit  
 2. Open `/remove`  
 3. Upload and run Remove effect  
 4. Compare and download  
+5. Optional: AI Restore for hard melts (18+, current frame only)  
 
 **CTA：** Open Matcha Filter Remover  
 

@@ -5,9 +5,9 @@ import { AdsterraNative } from "@/components/AdsterraNative";
 import { HeroCompare } from "@/components/HeroCompare";
 
 export const metadata: Metadata = {
-  title: "Matcha Filter — Viral Matcha Look, Apply or Remove Online",
+  title: "Matcha Filter Online — Apply or Remove the Viral Look",
   description:
-    "Matcha Filter is a private browser toolkit to apply the viral matcha green effect or reduce it from photos and videos — free, on-device, no account.",
+    "Matcha filter online: apply the viral green look or remove it from photos and videos — free in your browser, no account.",
   alternates: { canonical: "/" },
 };
 
@@ -22,11 +22,11 @@ export default function HomePage() {
           <span className="hero-grain" />
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">Matcha filter remover · On-device</p>
+          <p className="eyebrow">Matcha filter online · On-device</p>
           <h1 className="display brand-display">Matcha Filter</h1>
           <p className="lead">
-            Saved a viral liquid-green matcha clip? Reduce the cast in your browser —
-            free, private, best-effort.
+            Matcha filter online — apply the look or remove a saved viral green clip in your
+            browser. Free, private, best-effort.
           </p>
           <div className="cta-row">
             <Link href="/remove" className="btn-primary btn-primary-lg">

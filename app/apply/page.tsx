@@ -6,7 +6,7 @@ import { MediaTool } from "@/components/MediaTool";
 export const metadata: Metadata = {
   title: "Matcha Filter Online — Apply the Viral Green Effect",
   description:
-    "Apply a matcha-style green look to photos and videos in your browser. Free on-device matcha filter — no TikTok account required.",
+    "Matcha filter online: apply a viral green look to photos and videos in your browser. Free on-device — no TikTok account required.",
   alternates: { canonical: "/apply" },
   openGraph: {
     title: "Apply Matcha Filter",
@@ -69,15 +69,15 @@ export default function ApplyPage() {
       <MediaTool
         mode="apply"
         title="Apply Matcha Filter"
-        subtitle="Turn an ordinary clip into the soft green, grainy matcha vibe — processed locally."
+        subtitle="Matcha filter online — turn an ordinary clip into the soft green, grainy vibe. Processed locally, free."
       />
 
       <section className="section answer-box">
         <h2>Quick answer</h2>
         <p>
-          <strong>Apply Matcha Filter</strong> adds a soft green, grainy matcha look to a
-          photo or short video in your browser. It is not an official TikTok filter, and
-          processing stays on your device.
+          <strong>Matcha filter online</strong>: Apply Matcha Filter adds a soft green, grainy
+          look to a photo or short video in your browser. Not an official TikTok filter.
+          Processing stays on your device.
         </p>
       </section>
 

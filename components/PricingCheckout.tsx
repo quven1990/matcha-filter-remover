@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CREDIT_PACKS, type CreditPackId } from "@/lib/billing-packs";
+import { CREDIT_PACKS, PAYMENTS_ENABLED, type CreditPackId } from "@/lib/billing-packs";
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { track } from "@/lib/analytics";
 
@@ -13,6 +13,11 @@ export function PricingCheckout() {
 
   const buy = async (pack: CreditPackId) => {
     setError(null);
+    if (!PAYMENTS_ENABLED) {
+      setError("Card checkout is temporarily paused. Free Remove/Apply still works.");
+      track("billing_checkout_blocked", { pack, reason: "payments_paused" });
+      return;
+    }
     if (!agreed) {
       setError("Confirm you are 18+ and will not upload prohibited content before checkout.");
       track("billing_checkout_blocked", { pack, reason: "no_agree" });
@@ -54,7 +59,9 @@ export function PricingCheckout() {
         return;
       }
       if (!res.ok || !data.ok || !data.checkout_url) {
-        if (data.error === "creem_not_configured" || data.error === "product_not_configured") {
+        if (data.error === "payments_paused") {
+          setError(data.detail || "Card checkout is temporarily paused.");
+        } else if (data.error === "creem_not_configured" || data.error === "product_not_configured") {
           setError(
             "Payments are not configured yet. Add Creem API key + product IDs in Cloudflare secrets.",
           );
@@ -83,6 +90,43 @@ export function PricingCheckout() {
       setBusyPack(null);
     }
   };
+
+  if (!PAYMENTS_ENABLED) {
+    return (
+      <div className="pricing-checkout">
+        <div className="pricing-paused" role="status">
+          <p className="pricing-paused-title">Card checkout temporarily paused</p>
+          <p>
+            We are finishing live payment onboarding with our merchant of record (Creem). Free
+            on-device Remove/Apply stays available. AI credit packs will reopen here as soon as live
+            billing is enabled — no site outage for the free tools.
+          </p>
+          <p>
+            Questions:{" "}
+            <a href="mailto:billing@matchafilter.online">billing@matchafilter.online</a>
+          </p>
+        </div>
+        <div className="pricing-grid">
+          {CREDIT_PACKS.map((pack) => (
+            <article key={pack.id} className={`pricing-card ${pack.popular ? "is-popular" : ""}`}>
+              {pack.popular && <p className="pricing-badge">Most used</p>}
+              <h2>{pack.name}</h2>
+              <p className="pricing-price">{pack.priceLabel}</p>
+              <p className="pricing-credits">{pack.credits} AI credits</p>
+              <p className="pricing-blurb">{pack.blurb}</p>
+              <button type="button" className="btn-primary" disabled>
+                Coming soon
+              </button>
+            </article>
+          ))}
+        </div>
+        <p className="pricing-note">
+          Free Remove/Apply never requires credits. Paid AI Restore will return when checkout is
+          re-enabled.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="pricing-checkout">

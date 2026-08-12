@@ -4,6 +4,7 @@ import {
   type BillingEnv,
   type PackId,
   PACK_CREDITS,
+  PAYMENTS_ENABLED,
   corsHeaders,
   creemApiBase,
   ensureWallet,
@@ -20,6 +21,17 @@ export const onRequestOptions: PagesFunction<BillingEnv> = async (context) => {
 export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
   const headers = corsHeaders(context.request);
   try {
+    if (!PAYMENTS_ENABLED) {
+      return json(
+        {
+          ok: false,
+          error: "payments_paused",
+          detail: "Card checkout is temporarily paused while live billing is being enabled.",
+        },
+        503,
+        headers,
+      );
+    }
     if (!context.env.SAMPLES_DB) {
       return json({ ok: false, error: "billing_unavailable" }, 503, headers);
     }

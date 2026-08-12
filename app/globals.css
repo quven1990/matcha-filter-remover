@@ -1300,6 +1300,33 @@ a {
   margin: 1.5rem 0;
 }
 
+.pricing-paused {
+  padding: 1rem 1.1rem;
+  border-radius: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--matcha) 35%, var(--line));
+  background: color-mix(in srgb, var(--matcha) 8%, #fff);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pricing-paused-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pricing-paused p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.pricing-paused a {
+  color: var(--matcha-deep);
+  text-decoration: underline;
+}
+
 .pricing-email {
   display: grid;
   gap: 0.4rem;
