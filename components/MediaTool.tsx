@@ -733,7 +733,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         aiCanvasRef.current = canvas;
         setAiPass(true);
-        setCompare(100);
+        // Keep split centered so left (original) / right (AI) are both visible.
+        setCompare(50);
         setKind("image");
         requestAnimationFrame(() => {
           paramsRef.current = { ...paramsRef.current, aiPass: true, kind: "image" };
