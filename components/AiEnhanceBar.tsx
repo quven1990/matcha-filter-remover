@@ -58,7 +58,7 @@ async function resizeJpegBlob(blob: Blob, maxEdge: number, quality: number): Pro
 }
 
 const IDLE_HINT =
-  "Uses 1 credit per image. Same browser keeps your balance. Videos: AI restores the current frame only.";
+  "1 credit · same browser keeps your balance. Videos: current frame only. Best-effort — won’t uncover censored detail.";
 
 export function AiEnhanceBar({
   enabled,
@@ -306,9 +306,8 @@ export function AiEnhanceBar({
           }}
         />
         <span>
-          I confirm I have rights to this media and will not run AI Restore on NSFW, adult,
-          pornographic, sexually explicit, or illegal inputs (including any sexual content
-          involving minors). See <Link href="/terms">Terms</Link>.
+          I have rights to this media and won’t run AI on NSFW / illegal inputs (including sexual
+          content involving minors). <Link href="/terms">Terms</Link>
         </span>
       </label>
       <div className="ai-enhance-bar-actions">
@@ -327,8 +326,10 @@ export function AiEnhanceBar({
             : suspended
               ? "Wallet suspended"
               : noCredits
-                ? "Need credits"
-                : "Run AI Restore"}
+                ? PAYMENTS_ENABLED
+                  ? "Get credits · from $3.99"
+                  : "Need credits"
+                : "Restore with AI · 1 credit"}
         </button>
         {onPickNew && (
           <button type="button" className="btn-secondary" disabled={busy} onClick={onPickNew}>

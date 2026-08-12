@@ -3,3 +3,7 @@ Demo portrait for homepage before/after (matcha filter remover intent).
 - Base photo: Unsplash (photo-1438761681033-6461ffad8d80), Unsplash License.
 - with-filter.webp: real Apply bake (strength 88, liquid 52, grain 34) — olive paint + soft swirl, not a flat neon wash.
 - filter-removed.webp: clean source photo (not Remove pipeline output). Homepage labels it "Clean source"; copy states remover is best-effort and cannot perfectly restore.
+
+AI Restore example strip (not homepage):
+
+- ai-example-before.webp / ai-example-after.webp: owner-supplied hard-melt vs cleaner still (car portrait, face crop). Labels are illustrative stronger cleanup, not a claim of perfect original restore.

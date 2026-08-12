@@ -9,6 +9,7 @@ import {
   valueBucket,
 } from "@/lib/analytics";
 import { AiEnhanceBar, type AiProgress } from "@/components/AiEnhanceBar";
+import { ExampleCompare } from "@/components/ExampleCompare";
 import { canvasToSampleBlob, uploadVoluntarySample } from "@/lib/sample-share";
 import {
   MAX_IMAGE_MB,
@@ -328,7 +329,9 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [draggingCompare, setDraggingCompare] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [statusProgress, setStatusProgress] = useState(0);
-  const [showTip, setShowTip] = useState(false);
+  /** free = soft tip after upload; ai = stronger nudge after free pass; apply = apply-mode tip */
+  const [engageTip, setEngageTip] = useState<"free" | "ai" | "apply" | null>(null);
+  const [aiNudge, setAiNudge] = useState(false);
   const [saveSheet, setSaveSheet] = useState<SaveSheetState | null>(null);
   const [mobileSaveUi, setMobileSaveUi] = useState(false);
   const [autoTuned, setAutoTuned] = useState(false);
@@ -401,8 +404,30 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     [kind, trackTool],
   );
 
+  const engageTipRef = useRef(engageTip);
+  engageTipRef.current = engageTip;
+
+  const escalateAiTip = useCallback(
+    (reason: string) => {
+      setAiNudge(true);
+      if (engageTipRef.current === "free") {
+        trackTool("tool_ai_nudge", { reason, media_type: kind || undefined });
+        setEngageTip("ai");
+      }
+    },
+    [kind, trackTool],
+  );
+
+  useEffect(() => {
+    if (!ready || !isRemove || aiPass || engageTip !== "free") return;
+    const delay = hardCase ? 2800 : 7500;
+    const timer = window.setTimeout(() => escalateAiTip(hardCase ? "hard_case_timer" : "idle_timer"), delay);
+    return () => window.clearTimeout(timer);
+  }, [aiPass, engageTip, escalateAiTip, hardCase, isRemove, ready]);
+
   const noteParam = useCallback(
     (param: string, value: number) => {
+      if (isRemove && !aiPass) escalateAiTip("param_change");
       if (paramTimerRef.current) clearTimeout(paramTimerRef.current);
       paramTimerRef.current = setTimeout(() => {
         trackTool("tool_param_change", {
@@ -412,7 +437,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         });
       }, 400);
     },
-    [kind, trackTool],
+    [aiPass, escalateAiTip, isRemove, kind, trackTool],
   );
 
   paramsRef.current = {
@@ -484,7 +509,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setPreviewPaused(false);
     setVideoTime(0);
     setVideoDuration(0);
-    setShowTip(false);
+    setEngageTip(null);
+    setAiNudge(false);
     setAutoTuned(false);
     setShareState("idle");
     setShareError(null);
@@ -1021,7 +1047,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setPreviewPaused(false);
     setVideoTime(0);
     setVideoDuration(0);
-    setShowTip(false);
+    setEngageTip(null);
+    setAiNudge(false);
     setAutoTuned(false);
     clearStatus();
     uploadReadyAtRef.current = null;
@@ -1035,7 +1062,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     if (!file) return;
     setError(null);
     setBusy(true);
-    setShowTip(false);
+    setEngageTip(null);
+    setAiNudge(false);
     setAutoTuned(false);
     setShareState("idle");
     setShareError(null);
@@ -1275,7 +1303,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             ? durationBucket(video.duration)
             : undefined,
       });
-      setShowTip(true);
+      setEngageTip(isRemove ? "free" : "apply");
+      setAiNudge(false);
       setShareState("idle");
       setShareError(null);
     } catch (e) {
@@ -1991,9 +2020,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 </p>
               ) : (
                 <p className="ai-desktop-rail-status">
-                  Left preview uses <strong>free WebGL remove</strong>. For hard melts, run{" "}
-                  <strong>AI Restore</strong> in the right panel (or click the green chip on the
-                  image).
+                  Preview is <strong>free WebGL remove</strong>. Still melted after Adjust? Try{" "}
+                  <strong>AI Restore</strong> below — best-effort, won’t uncover censored detail.
                 </p>
               )}
               <div className="ai-desktop-rail-actions">
@@ -2027,26 +2055,42 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         </div>
 
         <aside className="controls-panel">
-          {ready && showTip && (
-            <div className="engage-tip" role="status">
+          {ready && engageTip && (
+            <div className={`engage-tip ${engageTip === "ai" ? "is-ai-nudge" : ""}`} role="status">
               <div className="engage-tip-copy">
-                {isRemove ? (
-                  <>
-                    <strong>Best-effort remove.</strong> Free tool clears cast; if it still looks melted,
-                    use <strong>AI Restore</strong> just below.
-                  </>
-                ) : (
+                {engageTip === "apply" ? (
                   <>
                     <strong>Next:</strong> use the sliders below to fine-tune the matcha look.
                   </>
+                ) : engageTip === "free" ? (
+                  <>
+                    <strong>Free remove is on.</strong> Tweak the sliders first. If it still looks
+                    melted, AI Restore is below.
+                  </>
+                ) : (
+                  <>
+                    <strong>Still looks melted?</strong> Free tool cleared the cast —{" "}
+                    <strong>AI Restore</strong> can try a stronger cleanup (1 credit · best-effort).
+                  </>
                 )}
               </div>
-              {isRemove ? (
+              {engageTip === "apply" ? (
                 <button
                   type="button"
                   className="engage-tip-dismiss copy-mobile"
                   onClick={() => {
-                    setShowTip(false);
+                    setEngageTip(null);
+                    scrollToAdjust("engage_tip");
+                  }}
+                >
+                  Show sliders
+                </button>
+              ) : engageTip === "ai" ? (
+                <button
+                  type="button"
+                  className="engage-tip-dismiss copy-mobile"
+                  onClick={() => {
+                    setEngageTip(null);
                     scrollToAi("engage_tip");
                   }}
                 >
@@ -2057,34 +2101,20 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   type="button"
                   className="engage-tip-dismiss copy-mobile"
                   onClick={() => {
-                    setShowTip(false);
+                    setEngageTip(null);
                     scrollToAdjust("engage_tip");
                   }}
                 >
                   Show sliders
                 </button>
               )}
-              <button type="button" className="engage-tip-dismiss copy-desktop" onClick={() => setShowTip(false)}>
+              <button
+                type="button"
+                className="engage-tip-dismiss copy-desktop"
+                onClick={() => setEngageTip(null)}
+              >
                 Got it
               </button>
-            </div>
-          )}
-
-          {ready && isRemove && (
-            <div ref={aiBlockRef} id="ai-restore" className="control-block ai-enhance-block">
-              <div className="control-block-head">
-                <h2>AI Restore</h2>
-                <p>Hard gold/olive melts the free tool cannot undo — 1 credit per image.</p>
-              </div>
-              <AiEnhanceBar
-                enabled={ready}
-                mediaType={kind}
-                captureSourceJpeg={captureSourceJpeg}
-                onAiResult={applyAiResult}
-                onPickNew={() => pickNewFile("ai_bar_new")}
-                onProgress={handleAiProgress}
-                onSuccess={handleAiSuccess}
-              />
             </div>
           )}
 
@@ -2095,7 +2125,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               <p>
                 {isRemove
                   ? autoTuned
-                    ? "Auto-tuned for gold/olive cast + emboss. Heavy warp may remain — save when it looks better."
+                    ? "Auto-tuned for gold/olive cast + emboss. Heavy warp may remain — save when it looks better, or try AI below."
                     : "Kill gold/olive duotone, flatten ink edges, reduce grain. Extreme warp is often permanent."
                   : "Gold/olive metal bake by default. Raise Liquid motion only if you want stronger melt."}
               </p>
@@ -2179,6 +2209,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     setDetail(28);
                     setCompare(50);
                     setAutoTuned(false);
+                    escalateAiTip("stronger_preset");
                     trackTool("tool_preset_click", {
                       preset: "stronger_remove",
                       media_type: kind || undefined,
@@ -2241,6 +2272,38 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               </div>
             )}
           </div>
+          )}
+
+          {ready && isRemove && (
+            <div
+              ref={aiBlockRef}
+              id="ai-restore"
+              className={`control-block ai-enhance-block ${aiNudge && !aiPass ? "is-nudge" : ""}`}
+            >
+              <div className="control-block-head">
+                <h2>Still looks melted?</h2>
+                <p>
+                  Free tool cleared the cast. <strong>AI Restore</strong> can try a stronger cleanup
+                  on this frame — 1 credit. Best-effort; won’t uncover censored detail.
+                </p>
+              </div>
+              <ExampleCompare
+                beforeSrc="/demo/ai-example-before.webp?v=3"
+                afterSrc="/demo/ai-example-after.webp?v=3"
+                beforeLabel="With filter"
+                afterLabel="Stronger cleanup"
+                hint="Example · best-effort · not the original file"
+              />
+              <AiEnhanceBar
+                enabled={ready}
+                mediaType={kind}
+                captureSourceJpeg={captureSourceJpeg}
+                onAiResult={applyAiResult}
+                onPickNew={() => pickNewFile("ai_bar_new")}
+                onProgress={handleAiProgress}
+                onSuccess={handleAiSuccess}
+              />
+            </div>
           )}
 
           {ready && (
