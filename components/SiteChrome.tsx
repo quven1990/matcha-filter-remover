@@ -43,20 +43,36 @@ export function SiteFooter() {
         <Link href="/refund">Refund</Link>
         <Link href="/cookie">Cookie</Link>
       </div>
-      <a
-        className="footer-badge"
-        href="https://smollist.com/projects/matcha-filter?utm_source=badge"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://r2.direasy-multi-tenant.focusapps.app/uploads/616d0b1a-3979-4b8c-94d1-b4f1fedd3ead/1783046749147/q1b2bvmvyl/featured-on-light.svg"
-          alt="Featured on Smol List"
-          width={180}
-          height={44}
-        />
-      </a>
+      <div className="footer-badges">
+        <a
+          className="footer-badge"
+          href="https://smollist.com/projects/matcha-filter?utm_source=badge"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://r2.direasy-multi-tenant.focusapps.app/uploads/616d0b1a-3979-4b8c-94d1-b4f1fedd3ead/1783046749147/q1b2bvmvyl/featured-on-light.svg"
+            alt="Featured on Smol List"
+            width={180}
+            height={44}
+          />
+        </a>
+        <a
+          className="footer-badge"
+          href="https://findly.tools/matcha-filter-remove?utm_source=matcha-filter-remove"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://findly.tools/badges/findly-tools-badge-light.svg"
+            alt="Featured on Findly.tools"
+            width={175}
+            height={55}
+          />
+        </a>
+      </div>
       <p className="footer-note">
         Independent tool. Not affiliated with TikTok or its trademarks. Contact:{" "}
         <a href="mailto:contact@matchafilter.online">contact@matchafilter.online</a>
