@@ -49,6 +49,7 @@ v0 本地处理降低隐私风险；**P0 是 NSFW/虚假还原声明**。必须�
 
 ### 禁止
 
+- **Terms 明文总括**：禁止用本站任何视觉媒体工具（含免费 Apply/Remove、导出、AI Restore）处理 NSFW / adult / pornographic / sexually explicit 内容（Creem 审核要求）
 - uncover / reveal / see through / unblur NSFW / restore censored body
 - 100% original recovery / pixel-perfect restore of destroyed detail
 - Official TikTok filter / endorsed by TikTok
