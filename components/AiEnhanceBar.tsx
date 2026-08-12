@@ -207,7 +207,7 @@ export function AiEnhanceBar({
           );
         } else if (data.error === "content_blocked") {
           setMessage(
-            "Blocked by safety checks. Adult/illegal content and anything involving minors is not allowed. Credit refunded.",
+            "Blocked by safety checks. Do not bring NSFW, adult, or illegal media (including anything involving minors) into this tool. Credit refunded.",
           );
         } else {
           setMessage(
@@ -257,8 +257,9 @@ export function AiEnhanceBar({
           onChange={(e) => setPolicyOk(e.target.checked)}
         />
         <span>
-          I confirm this media is legal for me to process, does not involve sexual content with
-          minors, and is not otherwise prohibited. See <Link href="/terms">Terms</Link>.
+          I confirm I have rights to this media and will not run AI Restore on NSFW, adult,
+          pornographic, sexually explicit, or illegal inputs (including any sexual content
+          involving minors). See <Link href="/terms">Terms</Link>.
         </span>
       </label>
       <div className="ai-enhance-bar-actions">

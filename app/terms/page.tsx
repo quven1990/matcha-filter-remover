@@ -47,18 +47,21 @@ export default function TermsPage() {
       <h2>Your responsibilities</h2>
       <h3>Allowed use</h3>
       <p>
-        Only process media you have rights to edit. Do not use the service to harass, exploit, or
-        process intimate imagery of others without lawful permission.
+        Matcha Filter is a matcha-style filter toolkit (apply / remove / optional AI restore). It
+        is not an adult-content generator. Only process media you have rights to edit. Do not use
+        the service to harass, exploit, or process intimate imagery of others without lawful
+        permission.
       </p>
-      <h3>Prohibited content (zero tolerance)</h3>
+      <h3>Prohibited inputs (zero tolerance)</h3>
       <p>
-        You must not use Matcha Filter — including the free on-device Apply and Remove tools,
-        exports, or paid AI Restore — to process, upload, enhance, distribute, or attempt to
-        restore any NSFW, adult, pornographic, or sexually explicit visual media (images or
-        video). This blanket prohibition applies regardless of consent, age of subjects, or
-        whether content is real, fictional, or AI-generated.
+        Do not bring prohibited visual media into our tools. You must not use Matcha Filter —
+        including the free on-device Apply and Remove tools, exports, or paid AI Restore — to
+        process, upload, enhance, filter, distribute, or attempt to restore any NSFW, adult,
+        pornographic, or sexually explicit images or video. This blanket prohibition applies
+        regardless of consent, age of subjects, or whether the media is real, fictional, or
+        AI-generated.
       </p>
-      <p>You must also not upload or request processing of:</p>
+      <p>You must also not upload or run our tools on:</p>
       <ul>
         <li>
           Any sexual, pornographic, or sexually suggestive content involving minors (anyone under

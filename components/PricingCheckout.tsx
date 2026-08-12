@@ -19,7 +19,7 @@ export function PricingCheckout() {
       return;
     }
     if (!agreed) {
-      setError("Confirm you are 18+ and will not upload prohibited content before checkout.");
+      setError("Confirm you are 18+ and will not process prohibited media before checkout.");
       track("billing_checkout_blocked", { pack, reason: "no_agree" });
       return;
     }
@@ -71,7 +71,7 @@ export function PricingCheckout() {
               "This wallet is suspended for policy or safety reasons. Contact billing@ or abuse@.",
           );
         } else if (data.error === "policy_required") {
-          setError("Confirm the 18+ / prohibited-content policy before checkout.");
+          setError("Confirm the 18+ / prohibited-input policy before checkout.");
         } else {
           const parts = [data.detail || data.error || "Checkout failed"];
           if (data.hint) parts.push(data.hint);
@@ -147,9 +147,10 @@ export function PricingCheckout() {
           onChange={(e) => setAgreed(e.target.checked)}
         />
         <span>
-          I am 18+, I will not upload sexual content involving minors or other illegal / prohibited
-          media, and I understand AI credits are digital goods (successful runs are not cash-refundable).
-          See <a href="/terms">Terms</a> and <a href="/refund">Refunds</a>.
+          I am 18+. I will not use Matcha Filter on NSFW, adult, pornographic, sexually explicit, or
+          illegal media (including any sexual content involving minors). AI credits are digital
+          goods — successful runs are not cash-refundable. See{" "}
+          <a href="/terms">Terms</a> and <a href="/refund">Refunds</a>.
         </span>
       </label>
       <div className="pricing-grid">

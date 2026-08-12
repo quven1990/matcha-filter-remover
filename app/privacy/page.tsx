@@ -26,10 +26,11 @@ export default function PrivacyPage() {
       <p>
         If you buy credits and run AI Restore, the selected frame is uploaded to our
         edge function and an AI image provider (currently fal.ai) solely to generate a
-        restored still. NSFW, adult, pornographic, and sexually explicit media are
-        prohibited on all tools (see <a href="/terms">Terms</a>). Uploads are used for that
-        request only; we do not use them for advertising or model training by us. The
-        provider may apply automated safety screening. We do not intentionally retain AI upload bytes after the response is
+        restored still. Matcha Filter is not an adult-content generator; do not bring NSFW,
+        adult, pornographic, or sexually explicit media into any tool (see{" "}
+        <a href="/terms">Terms</a>). Uploads are used for that request only; we do not use them
+        for advertising or model training by us. The provider may apply automated safety
+        screening. We do not intentionally retain AI upload bytes after the response is
         returned. Failed or safety-blocked jobs refund the credit. For safety and
         fraud prevention we may store wallet status, safety-block event counts, and
         related ledger metadata (not the image itself), and may suspend a wallet after

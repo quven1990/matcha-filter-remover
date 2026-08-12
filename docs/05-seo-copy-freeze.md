@@ -93,7 +93,7 @@
    No. Free Remove is color/texture cleanup. AI Restore is best-effort reconstruction, not original pixels.
 
 9. **Can it reveal hidden or censored content behind the filter?**  
-   No. Neither free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. AI is 18+ and blocks prohibited uploads.
+   No. Neither free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. Do not bring NSFW/illegal media into the tools. AI is 18+ and blocks prohibited inputs.
 
 10. **Do you upload my media?**  
     No for default on-device remover. AI Restore sends the selected still to our edge + AI provider for that job only.

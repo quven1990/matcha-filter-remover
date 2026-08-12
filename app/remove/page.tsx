@@ -57,7 +57,7 @@ const faq = [
   },
   {
     q: "Can it reveal hidden or censored content behind the filter?",
-    a: "No. Neither the free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. AI Restore is 18+ and blocks prohibited uploads.",
+    a: "No. Neither the free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. Do not bring NSFW or illegal media into the tools. AI Restore is 18+ and blocks prohibited inputs.",
   },
   {
     q: "Do you upload my media?",
@@ -225,7 +225,7 @@ export default function RemovePage() {
         <h3>What neither can restore</h3>
         <p>
           Painted-over or censored regions, missing original pixels, and NSFW-obscured detail
-          cannot be recovered. Do not upload prohibited media.
+          cannot be recovered. Do not bring NSFW, adult, or illegal media into these tools.
         </p>
       </section>
 
