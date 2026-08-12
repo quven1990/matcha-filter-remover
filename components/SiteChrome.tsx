@@ -86,6 +86,20 @@ export function SiteFooter() {
             height={54}
           />
         </a>
+        <a
+          className="footer-badge"
+          href="https://postyourstartup.co/startup/matcha-filter?ref=badge"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://postyourstartup.co/api/badge/matcha-filter?theme=neutral"
+            alt="Featured on PostYourStartup"
+            width={212}
+            height={55}
+          />
+        </a>
       </div>
       <p className="footer-note">
         Independent tool. Not affiliated with TikTok or its trademarks. Contact:{" "}
