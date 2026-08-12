@@ -72,6 +72,20 @@ export function SiteFooter() {
             height={55}
           />
         </a>
+        <a
+          className="footer-badge"
+          href="https://saastool.site/item/matcha-filter"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://saastool.site/badges/saastool-light.svg"
+            alt="Featured on SaaSTool.site"
+            width={175}
+            height={54}
+          />
+        </a>
       </div>
       <p className="footer-note">
         Independent tool. Not affiliated with TikTok or its trademarks. Contact:{" "}
