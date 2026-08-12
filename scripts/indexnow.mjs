@@ -17,11 +17,28 @@ function urlsFromSitemap() {
   return [...new Set(locs)];
 }
 
+async function waitForKeyFile(attempts = 8) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(KEY_LOCATION, { cache: "no-store" });
+      const text = (await res.text()).trim();
+      if (res.ok && text === KEY) return;
+      console.warn(`Key file not ready (${res.status}), retry ${i + 1}/${attempts}…`);
+    } catch (err) {
+      console.warn(`Key file fetch failed, retry ${i + 1}/${attempts}…`, err);
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  throw new Error(`IndexNow key file not reachable at ${KEY_LOCATION}`);
+}
+
 const urls = process.argv.slice(2).length ? process.argv.slice(2) : urlsFromSitemap();
 if (urls.length === 0) {
   console.error("No URLs to submit");
   process.exit(1);
 }
+
+await waitForKeyFile();
 
 const body = {
   host: HOST,
