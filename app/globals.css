@@ -146,6 +146,17 @@ a {
   color: var(--matcha-deep);
 }
 
+.footer-badge {
+  display: inline-block;
+  line-height: 0;
+}
+
+.footer-badge img {
+  display: block;
+  height: 44px;
+  width: auto;
+}
+
 .footer-note {
   margin: 0;
   opacity: 0.58;
