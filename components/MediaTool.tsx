@@ -375,8 +375,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     const mq = window.matchMedia("(max-width: 1023px), (pointer: coarse)");
     const sync = () => setMobileSaveUi(mq.matches);
     sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
   }, []);
 
   const closeSaveSheet = useCallback(() => {

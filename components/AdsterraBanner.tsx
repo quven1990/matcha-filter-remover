@@ -157,8 +157,13 @@ export function AdsterraLeaderboard({ className = "" }: { className?: string }) 
     const mq = window.matchMedia("(min-width: 768px)");
     const sync = () => setSize(mq.matches ? "728x90" : "320x50");
     sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    // Safari < 14 only has addListener/removeListener on MediaQueryList.
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    }
+    mq.addListener(sync);
+    return () => mq.removeListener(sync);
   }, []);
 
   if (!size) return null;

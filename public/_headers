@@ -1,0 +1,9 @@
+# Cloudflare Pages — keep hashed assets warm; always revalidate HTML shells.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/demo/*
+  Cache-Control: public, max-age=86400
+
+/*
+  Cache-Control: public, max-age=0, must-revalidate
