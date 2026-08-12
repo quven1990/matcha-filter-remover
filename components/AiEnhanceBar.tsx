@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AI_IMAGE_CREDIT_COST, PAYMENTS_ENABLED } from "@/lib/billing-packs";
 import { getOrCreateWalletId } from "@/lib/wallet";
-import { track } from "@/lib/analytics";
+import { creditBalanceBucket, elapsedBucket, track } from "@/lib/analytics";
 
 export type AiProgress = {
   active: boolean;
@@ -15,6 +15,8 @@ export type AiProgress = {
 
 type Props = {
   enabled: boolean;
+  /** Current tool media kind for analytics props. */
+  mediaType?: "image" | "video" | null;
   /** Export current source frame as JPEG blob for AI. */
   captureSourceJpeg: () => Promise<Blob | null>;
   /** Apply AI result as a still image into the tool. */
@@ -60,6 +62,7 @@ const IDLE_HINT =
 
 export function AiEnhanceBar({
   enabled,
+  mediaType = null,
   captureSourceJpeg,
   onAiResult,
   onPickNew,
@@ -127,21 +130,22 @@ export function AiEnhanceBar({
   const runEnhance = useCallback(async () => {
     setMessage(null);
     const walletId = getOrCreateWalletId();
+    const media_type = mediaType || undefined;
     if (walletStatus === "suspended") {
-      track("ai_enhance_blocked", { reason: "wallet_suspended" });
+      track("ai_enhance_blocked", { reason: "wallet_suspended", media_type });
       setMessageTone("bad");
       setMessage("This wallet is suspended. Contact abuse@ or billing@.");
       return;
     }
     if (!policyOk) {
-      track("ai_enhance_blocked", { reason: "no_policy" });
+      track("ai_enhance_blocked", { reason: "no_policy", media_type });
       setMessageTone("bad");
       setMessage("Check the box above to confirm this media is allowed, then tap Run again.");
       document.getElementById("ai-policy-agree")?.focus();
       return;
     }
     if (balance !== null && balance < AI_IMAGE_CREDIT_COST) {
-      track("ai_enhance_blocked", { reason: "no_credits" });
+      track("ai_enhance_blocked", { reason: "no_credits", media_type });
       setMessageTone("bad");
       setMessage(
         PAYMENTS_ENABLED
@@ -153,7 +157,12 @@ export function AiEnhanceBar({
     }
 
     setBusy(true);
-    track("ai_enhance_click", { balance: balance ?? -1 });
+    const startedAt = performance.now();
+    track("ai_enhance_click", {
+      balance: balance ?? -1,
+      balance_bucket: creditBalanceBucket(balance),
+      media_type,
+    });
     publish({ active: true, text: "Preparing frame…", progress: 12 });
 
     try {
@@ -161,6 +170,7 @@ export function AiEnhanceBar({
       if (!jpeg) {
         setMessageTone("bad");
         setMessage("Could not capture this frame for AI.");
+        track("ai_enhance_fail", { reason: "capture_failed", media_type });
         return;
       }
 
@@ -220,7 +230,11 @@ export function AiEnhanceBar({
             data.detail || data.error || "AI enhance failed. Credits were refunded if charged.",
           );
         }
-        track("ai_enhance_fail", { reason: data.error || res.status });
+        track("ai_enhance_fail", {
+          reason: data.error || res.status,
+          media_type,
+          elapsed_bucket: elapsedBucket(performance.now() - startedAt),
+        });
         return;
       }
 
@@ -230,7 +244,12 @@ export function AiEnhanceBar({
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const out = new Blob([bytes], { type: data.content_type || "image/jpeg" });
       await onAiResult(out);
-      track("ai_enhance_success", { balance: data.balance });
+      track("ai_enhance_success", {
+        balance: data.balance,
+        balance_bucket: creditBalanceBucket(data.balance),
+        media_type,
+        elapsed_bucket: elapsedBucket(performance.now() - startedAt),
+      });
       setMessageTone("ok");
       setMessage("AI restore applied. Drag the compare split, then save when ready.");
       onSuccess?.();
@@ -238,14 +257,29 @@ export function AiEnhanceBar({
       clearTick();
       setMessageTone("bad");
       setMessage("Network error during AI enhance. If a credit was taken, it should refund automatically.");
-      track("ai_enhance_fail", { reason: "network" });
+      track("ai_enhance_fail", {
+        reason: "network",
+        media_type,
+        elapsed_bucket: elapsedBucket(performance.now() - startedAt),
+      });
     } finally {
       clearTick();
       setBusy(false);
       publish({ active: false, text: "", progress: 0, hint: IDLE_HINT });
       void refresh();
     }
-  }, [balance, captureSourceJpeg, clearTick, onAiResult, onSuccess, policyOk, publish, refresh, walletStatus]);
+  }, [
+    balance,
+    captureSourceJpeg,
+    clearTick,
+    mediaType,
+    onAiResult,
+    onSuccess,
+    policyOk,
+    publish,
+    refresh,
+    walletStatus,
+  ]);
 
   if (!enabled) return null;
 
@@ -305,7 +339,12 @@ export function AiEnhanceBar({
           id="ai-buy-credits"
           href="/pricing"
           className={`btn-ghost ${noCredits ? "is-emphasis" : ""} ${message && noCredits ? "is-attention-link" : ""}`}
-          onClick={() => track("ai_pricing_click")}
+          onClick={() =>
+            track("ai_pricing_click", {
+              from: "ai_bar",
+              balance_bucket: creditBalanceBucket(balance),
+            })
+          }
           aria-disabled={busy || undefined}
         >
           {PAYMENTS_ENABLED ? "Buy credits" : "Credits soon"}

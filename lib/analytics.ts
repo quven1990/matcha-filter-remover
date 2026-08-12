@@ -70,3 +70,13 @@ export function elapsedBucket(ms: number): string {
   if (ms < 60_000) return "30-60s";
   return "60s+";
 }
+
+/** Credit balance buckets for analytics (keep exact `balance` when already sent). */
+export function creditBalanceBucket(balance: number | null | undefined): string {
+  if (balance === null || balance === undefined || !Number.isFinite(balance)) return "unknown";
+  if (balance <= 0) return "0";
+  if (balance < 5) return "1-4";
+  if (balance < 20) return "5-19";
+  return "20+";
+}
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CREDIT_PACKS, PAYMENTS_ENABLED, type CreditPackId } from "@/lib/billing-packs";
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { track } from "@/lib/analytics";
@@ -10,6 +10,10 @@ export function PricingCheckout() {
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    track("pricing_view");
+  }, []);
 
   const buy = async (pack: CreditPackId) => {
     setError(null);

@@ -2078,6 +2078,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               </div>
               <AiEnhanceBar
                 enabled={ready}
+                mediaType={kind}
                 captureSourceJpeg={captureSourceJpeg}
                 onAiResult={applyAiResult}
                 onPickNew={() => pickNewFile("ai_bar_new")}

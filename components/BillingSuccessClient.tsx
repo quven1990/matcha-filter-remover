@@ -35,21 +35,25 @@ export function BillingSuccessClient() {
         if (!res.ok || !data.ok) {
           setStatus("error");
           setMessage(data.error || "Could not confirm payment.");
+          track("billing_activate_result", { result: "error", reason: data.error || `http_${res.status}` });
           return;
         }
         if (typeof data.balance === "number") setBalance(data.balance);
         if (data.credited || (data.balance ?? 0) > 0) {
           setStatus("ok");
           setMessage("Credits are on this browser wallet. Open Remove and run AI Restore.");
+          track("billing_activate_result", { result: "credited" });
         } else {
           setStatus("pending");
           setMessage(
             "Payment received — credits may take a few seconds (webhook). Refresh balance on /remove.",
           );
+          track("billing_activate_result", { result: "pending" });
         }
       } catch {
         setStatus("error");
         setMessage("Network error confirming payment.");
+        track("billing_activate_result", { result: "error", reason: "network" });
       }
     };
     void run();
