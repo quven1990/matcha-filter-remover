@@ -100,6 +100,22 @@ export function SiteFooter() {
             height={55}
           />
         </a>
+        <a
+          className="footer-badge"
+          href="https://launchpadly.co/startup/matcha-filter?ref=badge"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-launchpadly-badge="matcha-filter"
+          data-launchpadly-badge-variant="listed-on"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://launchpadly.co/embed/badges/startup/matcha-filter.svg?variant=listed-on"
+            alt="Launchpadly Startup Directory"
+            width={260}
+            height={48}
+          />
+        </a>
       </div>
       <p className="footer-note">
         Independent tool. Not affiliated with TikTok or its trademarks. Contact:{" "}
