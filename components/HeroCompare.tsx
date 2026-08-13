@@ -46,8 +46,6 @@ export function HeroCompare({
         ref={frameRef}
         className="hero-compare-frame"
         style={{ ["--split" as string]: `${split}%` }}
-        role="img"
-        aria-label="Viral matcha look versus clean source. Drag to compare."
         onPointerDown={(e) => {
           if ((e.target as HTMLElement).closest("a")) return;
           dragging.current = true;
