@@ -96,6 +96,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
+      <head>
+        {/* Runs before Next hydrates — layout chunk 404s never reach ClientChunkRecovery. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var k="mf_boot_reload";function go(){try{if(sessionStorage.getItem(k)==="1")return;sessionStorage.setItem(k,"1")}catch(e){}var u=new URL(location.href);u.searchParams.set("_mf",String(Date.now()));location.replace(u.toString())}window.addEventListener("error",function(e){var t=e&&e.target;if(t&&t.tagName==="SCRIPT"&&t.src&&t.src.indexOf("/_next/static/")!==-1)go();if(e&&e.message&&/Loading chunk|ChunkLoadError/i.test(e.message))go()},true);window.addEventListener("unhandledrejection",function(e){var r=e&&e.reason,m=r&&(r.message||r)||"";if(/Loading chunk|ChunkLoadError/i.test(String(m)))go()})})();`,
+          }}
+        />
+      </head>
       <body className={`${display.variable} ${sans.variable}`}>
         <script
           type="application/ld+json"
