@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-/** After a deploy, stale tabs may request deleted `/_next/static` chunks and white-screen. */
+/** After a deploy, stale tabs may request deleted `/_next/static` assets and look unstyled / white-screen. */
 function isChunkLoadError(err: unknown): boolean {
   const msg =
     err instanceof Error
@@ -30,17 +30,50 @@ export function ClientChunkRecovery() {
       }
     };
 
-    const onError = (event: ErrorEvent) => {
-      if (isChunkLoadError(event.error) || isChunkLoadError(event.message)) reloadOnce();
+    const onError = (event: Event) => {
+      const target = event.target;
+      if (target instanceof HTMLLinkElement && target.rel === "stylesheet") {
+        reloadOnce();
+        return;
+      }
+      if (target instanceof HTMLScriptElement && target.src.includes("/_next/static/")) {
+        reloadOnce();
+        return;
+      }
+      if (event instanceof ErrorEvent) {
+        if (isChunkLoadError(event.error) || isChunkLoadError(event.message)) reloadOnce();
+      }
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       if (isChunkLoadError(event.reason)) reloadOnce();
     };
 
-    window.addEventListener("error", onError);
+    // Resource errors (CSS/JS 404 after deploy) do not bubble — capture them.
+    window.addEventListener("error", onError, true);
     window.addEventListener("unhandledrejection", onRejection);
+
+    // Soft check: if Next CSS links never produced a sheet after load, recover.
+    const softCheck = window.setTimeout(() => {
+      const links = document.querySelectorAll<HTMLLinkElement>(
+        'link[rel="stylesheet"][href*="/_next/static/css/"]',
+      );
+      for (const link of links) {
+        if (!link.sheet) {
+          reloadOnce();
+          return;
+        }
+      }
+      // Clear one-shot flag after a healthy load so a later deploy can recover again.
+      try {
+        sessionStorage.removeItem("mf_chunk_reload");
+      } catch {
+        /* ignore */
+      }
+    }, 2500);
+
     return () => {
-      window.removeEventListener("error", onError);
+      window.clearTimeout(softCheck);
+      window.removeEventListener("error", onError, true);
       window.removeEventListener("unhandledrejection", onRejection);
     };
   }, []);
