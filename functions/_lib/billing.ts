@@ -17,10 +17,10 @@ export type BillingEnv = {
 };
 
 /**
- * Temporary kill-switch while Creem Live merchant verification is pending.
- * Keep in sync with `lib/billing-packs.ts` → PAYMENTS_ENABLED.
+ * Live checkout kill-switch. Keep in sync with `lib/billing-packs.ts`.
+ * Creem merchant approved 2026-08-13 — payments open.
  */
-export const PAYMENTS_ENABLED = false;
+export const PAYMENTS_ENABLED = true;
 
 export function json(data: unknown, status = 200, extraHeaders: HeadersInit = {}) {
   return new Response(JSON.stringify(data), {

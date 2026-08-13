@@ -1,10 +1,10 @@
 /** Public credit packs (prices shown on /pricing). Product IDs come from env at checkout. */
 
 /**
- * Temporary kill-switch while Creem Live merchant verification is pending.
- * Flip to `true` (and mirror in functions/_lib/billing.ts) when asked to reopen payments.
+ * Live checkout kill-switch. Keep in sync with `functions/_lib/billing.ts`.
+ * Creem merchant approved 2026-08-13 — payments open.
  */
-export const PAYMENTS_ENABLED = false;
+export const PAYMENTS_ENABLED = true;
 
 export type CreditPackId = "starter" | "plus" | "pro";
 
