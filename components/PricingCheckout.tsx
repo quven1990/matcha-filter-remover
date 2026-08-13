@@ -10,10 +10,18 @@ export function PricingCheckout() {
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsAgree, setNeedsAgree] = useState(false);
 
   useEffect(() => {
     track("pricing_view");
   }, []);
+
+  const focusAgree = () => {
+    setNeedsAgree(true);
+    const el = document.getElementById("pricing-policy-agree");
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.focus();
+  };
 
   const buy = async (pack: CreditPackId) => {
     setError(null);
@@ -23,10 +31,14 @@ export function PricingCheckout() {
       return;
     }
     if (!agreed) {
-      setError("Confirm you are 18+ and will not process prohibited media before checkout.");
+      setError(
+        "Check the box above to confirm you are 18+ and won’t process prohibited media, then tap Buy again.",
+      );
       track("billing_checkout_blocked", { pack, reason: "no_agree" });
+      focusAgree();
       return;
     }
+    setNeedsAgree(false);
     setBusyPack(pack);
     track("billing_checkout_click", { pack });
     try {
@@ -76,6 +88,7 @@ export function PricingCheckout() {
           );
         } else if (data.error === "policy_required") {
           setError("Confirm the 18+ / prohibited-input policy before checkout.");
+          focusAgree();
         } else {
           const parts = [data.detail || data.error || "Checkout failed"];
           if (data.hint) parts.push(data.hint);
@@ -132,6 +145,8 @@ export function PricingCheckout() {
     );
   }
 
+  const agreeAttention = needsAgree || Boolean(error && !agreed);
+
   return (
     <div className="pricing-checkout">
       <label className="pricing-email">
@@ -144,11 +159,22 @@ export function PricingCheckout() {
           autoComplete="email"
         />
       </label>
-      <label className="pricing-agree">
+      <label
+        className={`pricing-agree ${agreeAttention ? "is-attention" : ""}`}
+        htmlFor="pricing-policy-agree"
+      >
         <input
+          id="pricing-policy-agree"
           type="checkbox"
           checked={agreed}
-          onChange={(e) => setAgreed(e.target.checked)}
+          disabled={busyPack !== null}
+          onChange={(e) => {
+            setAgreed(e.target.checked);
+            if (e.target.checked) {
+              setNeedsAgree(false);
+              setError(null);
+            }
+          }}
         />
         <span>
           I am 18+. I will not use Matcha Filter on NSFW, adult, pornographic, sexually explicit, or
@@ -157,6 +183,11 @@ export function PricingCheckout() {
           <a href="/terms">Terms</a> and <a href="/refund">Refunds</a>.
         </span>
       </label>
+      {error && !agreed && (
+        <p className="pricing-error pricing-error-inline" role="alert">
+          {error}
+        </p>
+      )}
       <div className="pricing-grid">
         {CREDIT_PACKS.map((pack) => (
           <article key={pack.id} className={`pricing-card ${pack.popular ? "is-popular" : ""}`}>
@@ -167,8 +198,9 @@ export function PricingCheckout() {
             <p className="pricing-blurb">{pack.blurb}</p>
             <button
               type="button"
-              className="btn-primary"
-              disabled={busyPack !== null || !agreed}
+              className={`btn-primary ${!agreed && busyPack === null ? "is-needs-policy" : ""}`}
+              disabled={busyPack !== null}
+              aria-describedby={!agreed ? "pricing-policy-agree" : undefined}
               onClick={() => void buy(pack.id)}
             >
               {busyPack === pack.id ? "Redirecting…" : `Buy ${pack.name}`}
@@ -176,7 +208,7 @@ export function PricingCheckout() {
           </article>
         ))}
       </div>
-      {error && (
+      {error && agreed && (
         <p className="pricing-error" role="alert">
           {error}
         </p>
