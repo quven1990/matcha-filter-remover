@@ -44,22 +44,23 @@
 
 ## `/remove` (PRIMARY MONEY PAGE)
 
-**title:** Free Matcha Filter Remover — Clean the Green Effect Online  
-**meta:** Free matcha filter remover — no signup. Clean light green cast on-device; optional AI Restore for heavy liquid-metal melts (18+). Cannot reveal hidden or censored detail.
+**title:** Free Matcha Filter Remover — Clean Filter & Video  
+**meta:** Free matcha filter remover for photos & short videos — no signup. Clean the matcha effect on-device; optional AI Restore for hard melts (18+).
 
 **H1:** Matcha Filter Remover  
-**sub:** Free on-device cleanup for green cast and grain. Optional AI Restore for heavy liquid-metal melts (18+). Upload a photo, TikTok screenshot, or short video.
+**sub:** Free on-device cleanup for green cast and grain. Optional AI Restore for heavy liquid-metal melts (18+). Works on TikTok screenshots and short clips.
 
 **CTA:** Upload & Remove  
 **Secondary:** Compare before / after
 
 **H2:**
 1. Clean a matcha filter (free, no signup)
-2. How the remover works
-3. Free Remove vs AI Restore
-4. What it can and cannot fix
-5. Free, private, no account
-6. FAQ
+2. Remove matcha filter from a photo or short video
+3. How the remover works
+4. Free Remove vs AI Restore
+5. What it can and cannot fix
+6. Free, private, no account
+7. FAQ
 
 **Tool microcopy:**
 - Drop zone：`Drop a photo or short video` / `JPG, PNG, WebP, MP4 · stays on your device`
@@ -84,24 +85,32 @@
    Free Remove can do short video locally. AI Restore = current frame still only.
 
 6. **How do I clean a matcha filter?**  
-   Upload and run Remove effect first; AI Restore only if still melted. Will not uncover censored detail.
+   Upload and run Remove effect first (clean / clear / clean filter matcha). AI Restore only if still melted. Will not uncover censored detail.
 
-7. **Can I remove a matcha filter from a TikTok screenshot?**  
+7. **How do I remove a matcha filter from a video?**  
+   Upload short MP4/WebM/MOV → free Remove on-device → download. AI Restore = current frame still only.
+
+8. **How do I remove a matcha filter on TikTok?**  
+   Export/screenshot what you have rights to edit → upload here → Remove effect. Best-effort; not original unfiltered file.
+
+9. **Can I remove a matcha filter from a TikTok screenshot?**  
    Yes. Upload a screenshot or photo and run Remove effect. Best-effort, not a perfect original.
 
-8. **Can this restore the exact original TikTok file?**  
-   No. Free Remove is color/texture cleanup. AI Restore is best-effort reconstruction, not original pixels.
+10. **Can this restore the exact original TikTok file?**  
+    No. Free Remove is color/texture cleanup. AI Restore is best-effort reconstruction, not original pixels.
 
-9. **Can it reveal hidden or censored content behind the filter?**  
-   No. Neither free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. Do not bring NSFW/illegal media into the tools. AI is 18+ and blocks prohibited inputs.
+11. **Can it reveal hidden or censored content behind the filter?**  
+    No. Neither free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. Do not bring NSFW/illegal media into the tools. AI is 18+ and blocks prohibited inputs.
 
-10. **Do you upload my media?**  
+12. **Do you upload my media?**  
     No for default on-device remover. AI Restore sends the selected still to our edge + AI provider for that job only.
 
-11. **Is Matcha Filter affiliated with TikTok?**  
-   No. Independent tool. Not endorsed by TikTok.
+13. **Is Matcha Filter affiliated with TikTok?**  
+    No. Independent tool. Not endorsed by TikTok.
 
 **Change log (2026-08-12):** GSC cluster + snippet pass; then product honesty — Free Remove vs AI Restore (18+, frame-only, checkout pause note). Compliance: still no reveal/uncensor claims.
+
+**Change log (2026-08-13):** GSC long-tail pass — title/meta lean Clean Filter + Video (shortened for SERP); video H2; FAQ for video + TikTok how-to. H1 unchanged. Compare demos get non-empty image alts.
 
 **HowTo steps (schema):**
 1. Open Matcha Filter Remover  

@@ -80,7 +80,7 @@ export function ExampleCompare({
         <img
           className="example-compare-img example-compare-after"
           src={afterSrc}
-          alt=""
+          alt={`Example after · ${afterLabel}`}
           width={960}
           height={720}
           decoding="async"
@@ -91,7 +91,7 @@ export function ExampleCompare({
           <img
             className="example-compare-img"
             src={beforeSrc}
-            alt=""
+            alt={`Example before · ${beforeLabel}`}
             width={960}
             height={720}
             decoding="async"

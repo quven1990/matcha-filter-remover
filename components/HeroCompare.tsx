@@ -46,6 +46,8 @@ export function HeroCompare({
         ref={frameRef}
         className="hero-compare-frame"
         style={{ ["--split" as string]: `${split}%` }}
+        role="img"
+        aria-label="Viral matcha look versus clean source. Drag to compare."
         onPointerDown={(e) => {
           if ((e.target as HTMLElement).closest("a")) return;
           dragging.current = true;
@@ -58,7 +60,7 @@ export function HeroCompare({
         <img
           className="hero-compare-img hero-compare-after"
           src={afterSrc}
-          alt="Clean source photo without the viral matcha look"
+          alt="Example after · clean source without the viral matcha look"
           width={960}
           height={1200}
           decoding="async"
@@ -68,7 +70,7 @@ export function HeroCompare({
           <img
             className="hero-compare-img"
             src={beforeSrc}
-            alt=""
+            alt="Example before · viral matcha green filter look"
             width={960}
             height={1200}
             decoding="async"
