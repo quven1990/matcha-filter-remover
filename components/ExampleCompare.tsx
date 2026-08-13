@@ -14,9 +14,9 @@ type Props = {
 export function ExampleCompare({
   beforeSrc,
   afterSrc,
-  beforeLabel = "With filter",
-  afterLabel = "Stronger cleanup",
-  hint = "Example · best-effort · not your file",
+  beforeLabel = "Free cleanup",
+  afterLabel = "AI Restore",
+  hint = "Example · drag to compare · not your file",
   className = "",
 }: Props) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -105,8 +105,8 @@ export function ExampleCompare({
         <span className="example-compare-tag example-compare-tag-after">{afterLabel}</span>
       </div>
       <p className="example-compare-note">
-        Drag to compare. Different sample from the homepage. Free WebGL first; AI Restore when melt
-        remains — won’t uncover censored detail.
+        Left = free WebGL ceiling. Right = what 1 AI credit can still try. Best-effort — won’t uncover
+        censored detail.
       </p>
     </div>
   );

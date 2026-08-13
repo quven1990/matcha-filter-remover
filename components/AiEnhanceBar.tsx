@@ -58,7 +58,7 @@ async function resizeJpegBlob(blob: Blob, maxEdge: number, quality: number): Pro
 }
 
 const IDLE_HINT =
-  "1 credit · same browser keeps your balance. Videos: current frame only. Best-effort — won’t uncover censored detail.";
+  "1 credit · balance stays in this browser. Videos: current frame only. Best-effort — won’t uncover censored detail.";
 
 export function AiEnhanceBar({
   enabled,
@@ -288,68 +288,93 @@ export function AiEnhanceBar({
   // Only block while a job is running — other blockers need a click so we can show feedback.
   const runDisabled = busy;
   const needsPolicy = !policyOk && !busy && !suspended && !noCredits;
+  const sellCredits = noCredits && PAYMENTS_ENABLED && !suspended && !busy;
+  const showBuyLink = PAYMENTS_ENABLED && !sellCredits;
 
   return (
     <div className={`ai-enhance-bar ${busy ? "is-busy" : ""}`} aria-busy={busy}>
-      <label
-        className={`ai-enhance-agree ${message && !policyOk ? "is-attention" : ""}`}
-        htmlFor="ai-policy-agree"
-      >
-        <input
-          id="ai-policy-agree"
-          type="checkbox"
-          checked={policyOk}
-          disabled={busy || suspended}
-          onChange={(e) => {
-            setPolicyOk(e.target.checked);
-            if (e.target.checked) setMessage(null);
-          }}
-        />
-        <span>
-          I have rights to this media and won’t run AI on NSFW / illegal inputs (including sexual
-          content involving minors). <Link href="/terms">Terms</Link>
-        </span>
-      </label>
+      {!sellCredits && (
+        <label
+          className={`ai-enhance-agree ${message && !policyOk ? "is-attention" : ""}`}
+          htmlFor="ai-policy-agree"
+        >
+          <input
+            id="ai-policy-agree"
+            type="checkbox"
+            checked={policyOk}
+            disabled={busy || suspended}
+            onChange={(e) => {
+              setPolicyOk(e.target.checked);
+              if (e.target.checked) setMessage(null);
+            }}
+          />
+          <span>
+            I have rights to this media and won’t submit illegal or prohibited content.{" "}
+            <Link href="/terms">Terms</Link>
+          </span>
+        </label>
+      )}
       <div className="ai-enhance-bar-actions">
         <span className="ai-credit-pill">
           {balance === null ? "Credits…" : `${balance} credit${balance === 1 ? "" : "s"}`}
         </span>
-        <button
-          type="button"
-          className={`btn-primary ${needsPolicy ? "is-needs-policy" : ""}`}
-          disabled={runDisabled}
-          aria-describedby={!policyOk ? "ai-policy-agree" : undefined}
-          onClick={() => void runEnhance()}
-        >
-          {busy
-            ? "Running AI…"
-            : suspended
-              ? "Wallet suspended"
-              : noCredits
-                ? PAYMENTS_ENABLED
-                  ? "Get credits · from $3.99"
-                  : "Need credits"
-                : "Restore with AI · 1 credit"}
-        </button>
+        {sellCredits ? (
+          <Link
+            id="ai-buy-credits"
+            href="/pricing"
+            className="btn-primary"
+            onClick={() =>
+              track("ai_pricing_click", {
+                from: "ai_bar_primary",
+                balance_bucket: creditBalanceBucket(balance),
+              })
+            }
+          >
+            Try AI Restore · from $3.99
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className={`btn-primary ${needsPolicy ? "is-needs-policy" : ""}`}
+            disabled={runDisabled}
+            aria-describedby={!policyOk ? "ai-policy-agree" : undefined}
+            onClick={() => void runEnhance()}
+          >
+            {busy
+              ? "Running AI…"
+              : suspended
+                ? "Wallet suspended"
+                : !PAYMENTS_ENABLED && noCredits
+                  ? "Need credits"
+                  : "Run AI Restore · 1 credit"}
+          </button>
+        )}
         {onPickNew && (
           <button type="button" className="btn-secondary" disabled={busy} onClick={onPickNew}>
             New photo
           </button>
         )}
-        <Link
-          id="ai-buy-credits"
-          href="/pricing"
-          className={`btn-ghost ${noCredits ? "is-emphasis" : ""} ${message && noCredits ? "is-attention-link" : ""}`}
-          onClick={() =>
-            track("ai_pricing_click", {
-              from: "ai_bar",
-              balance_bucket: creditBalanceBucket(balance),
-            })
-          }
-          aria-disabled={busy || undefined}
-        >
-          {PAYMENTS_ENABLED ? "Buy credits" : "Credits soon"}
-        </Link>
+        {showBuyLink && (
+          <Link
+            id="ai-buy-credits"
+            href="/pricing"
+            className="btn-ghost"
+            onClick={() =>
+              track("ai_pricing_click", {
+                from: "ai_bar",
+                balance_bucket: creditBalanceBucket(balance),
+              })
+            }
+            aria-disabled={busy || undefined}
+          >
+            Buy credits
+          </Link>
+        )}
+        {!PAYMENTS_ENABLED && noCredits && (
+          <Link id="ai-buy-credits" href="/pricing" className="btn-ghost">
+            Credits soon
+          </Link>
+        )}
       </div>
 
       {busy ? (
@@ -364,7 +389,11 @@ export function AiEnhanceBar({
           <p className="ai-progress-hint">Cloud AI · usually 15–45 seconds. Keep this tab open.</p>
         </div>
       ) : (
-        <p className="ai-enhance-bar-note">{IDLE_HINT}</p>
+        <p className="ai-enhance-bar-note">
+          {sellCredits
+            ? "Starter from $3.99 · come back here to run AI on this frame. Best-effort — won’t uncover censored detail."
+            : IDLE_HINT}
+        </p>
       )}
 
       {message && (

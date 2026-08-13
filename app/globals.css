@@ -1492,10 +1492,33 @@ a {
   color: var(--matcha);
 }
 
+.pricing-page .pricing-lead {
+  max-width: 36rem;
+}
+
+.pricing-proof {
+  margin: 1.25rem 0 0.25rem;
+  max-width: 40rem;
+}
+
+.pricing-proof .example-compare-note {
+  margin-bottom: 0;
+}
+
+.pricing-page .pricing-legal {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
 .pricing-checkout {
   display: grid;
   gap: 1.25rem;
-  margin: 1.5rem 0;
+  margin: 1.35rem 0 1.75rem;
+}
+
+.pricing-checkout-meta {
+  display: grid;
+  gap: 0.85rem;
 }
 
 .pricing-paused {
@@ -1589,6 +1612,15 @@ a {
 
 .pricing-card.is-popular {
   border-color: rgba(47, 107, 72, 0.45);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--matcha) 25%, transparent);
+}
+
+.pricing-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .pricing-badge {

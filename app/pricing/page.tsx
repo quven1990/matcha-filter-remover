@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ExampleCompare } from "@/components/ExampleCompare";
 import { PricingCheckout } from "@/components/PricingCheckout";
-import { CREDIT_PACKS, AI_IMAGE_CREDIT_COST } from "@/lib/billing-packs";
+import { AI_IMAGE_CREDIT_COST } from "@/lib/billing-packs";
 
 export const metadata: Metadata = {
   title: "AI Credits — Matcha Filter",
@@ -13,36 +14,39 @@ export const metadata: Metadata = {
 export default function PricingPage() {
   return (
     <article className="prose pricing-page">
-      <p className="eyebrow">Credits</p>
-      <h1>AI Restore credits</h1>
-      <p>
-        Free Remove/Apply stay on-device and unlimited for normal use. AI Restore is optional for
-        hard gold/olive melts — <strong>{AI_IMAGE_CREDIT_COST} credit per image</strong>, charged
-        only when the job succeeds (failures refund).
+      <p className="eyebrow">Matcha Filter · AI Restore</p>
+      <h1>When free sliders still look melted</h1>
+      <p className="pricing-lead">
+        Free Remove stays on-device and unlimited. AI Restore is optional —{" "}
+        <strong>{AI_IMAGE_CREDIT_COST} credit per still</strong>, charged only when the job
+        succeeds.
       </p>
+
+      <div className="pricing-proof">
+        <ExampleCompare
+          beforeSrc="/demo/pricing-free.webp?v=3"
+          afterSrc="/demo/pricing-ai.webp?v=3"
+          beforeLabel="Free cleanup"
+          afterLabel="AI Restore"
+          hint="Example · drag to compare · not your file"
+        />
+      </div>
+
       <PricingCheckout />
-      <h2>What you get</h2>
-      <ul>
-        {CREDIT_PACKS.map((p) => (
-          <li key={p.id}>
-            <strong>{p.name}</strong> — {p.credits} credits ({p.priceLabel})
-          </li>
-        ))}
-      </ul>
+
       <h2>How it works</h2>
       <ol>
-        <li>Buy a pack (Creem checkout — no Google login required).</li>
-        <li>Credits bind to this browser wallet (keep the same device/browser).</li>
+        <li>Pick a pack (Creem checkout — no account required).</li>
+        <li>Credits stay in this browser wallet (same device/browser).</li>
         <li>
-          On <Link href="/remove">Remove</Link>, upload → try free tool → Run AI Restore if needed.
+          Open <Link href="/remove">Remove</Link>, upload, then Run AI Restore on hard frames.
         </li>
       </ol>
-      <p>
-        See <Link href="/refund">Refunds</Link> and <Link href="/terms">Terms</Link>. You must be
-        18+ to buy credits / run AI. Do not bring NSFW, adult, pornographic, sexually explicit, or
-        illegal media into the tools (including any sexual content involving minors) — blocked
-        inputs are refused. Successful AI runs are not cash-refundable; failed or safety-blocked
-        jobs return the credit to your wallet only. Merchant of record: Creem.
+      <p className="pricing-legal">
+        See <Link href="/refund">Refunds</Link> and <Link href="/terms">Terms</Link>. 18+ to buy /
+        run AI. Prohibited inputs are blocked — details in Terms. Successful AI runs aren’t
+        cash-refundable; failed or safety-blocked jobs return the credit only. Merchant of record:
+        Creem.
       </p>
     </article>
   );

@@ -2069,8 +2069,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   </>
                 ) : (
                   <>
-                    <strong>Still looks melted?</strong> Free tool cleared the cast —{" "}
-                    <strong>AI Restore</strong> can try a stronger cleanup (1 credit · best-effort).
+                    <strong>Local cleanup hit its limit.</strong> ↓ Drag the compare — see what AI
+                    Restore still tries (1 credit).
                   </>
                 )}
               </div>
@@ -2281,18 +2281,19 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               className={`control-block ai-enhance-block ${aiNudge && !aiPass ? "is-nudge" : ""}`}
             >
               <div className="control-block-head">
-                <h2>Still looks melted?</h2>
+                <h2>Free hit the ceiling?</h2>
                 <p>
-                  Free tool cleared the cast. <strong>AI Restore</strong> can try a stronger cleanup
-                  on this frame — 1 credit. Best-effort; won’t uncover censored detail.
+                  Sliders cleared the cast. If skin or hair still looks melted,{" "}
+                  <strong>AI Restore</strong> tries one more layer on this frame — 1 credit ·
+                  best-effort.
                 </p>
               </div>
               <ExampleCompare
                 beforeSrc="/demo/ai-example-before.webp?v=3"
                 afterSrc="/demo/ai-example-after.webp?v=3"
-                beforeLabel="With filter"
-                afterLabel="Stronger cleanup"
-                hint="Example · best-effort · not the original file"
+                beforeLabel="Free cleanup"
+                afterLabel="AI Restore"
+                hint="Example · drag to compare · not your file"
               />
               <AiEnhanceBar
                 enabled={ready}

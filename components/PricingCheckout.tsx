@@ -5,6 +5,12 @@ import { CREDIT_PACKS, PAYMENTS_ENABLED, type CreditPackId } from "@/lib/billing
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { track } from "@/lib/analytics";
 
+function buyLabel(pack: (typeof CREDIT_PACKS)[number], busy: boolean) {
+  if (busy) return "Redirecting…";
+  if (pack.id === "starter") return `Try · ${pack.priceLabel}`;
+  return `Buy ${pack.name} · ${pack.priceLabel}`;
+}
+
 export function PricingCheckout() {
   const [busyPack, setBusyPack] = useState<CreditPackId | null>(null);
   const [email, setEmail] = useState("");
@@ -31,9 +37,7 @@ export function PricingCheckout() {
       return;
     }
     if (!agreed) {
-      setError(
-        "Check the box above to confirm you are 18+ and won’t process prohibited media, then tap Buy again.",
-      );
+      setError("Check the box below, then tap Buy again.");
       track("billing_checkout_blocked", { pack, reason: "no_agree" });
       focusAgree();
       return;
@@ -87,7 +91,7 @@ export function PricingCheckout() {
               "This wallet is suspended for policy or safety reasons. Contact billing@ or abuse@.",
           );
         } else if (data.error === "policy_required") {
-          setError("Confirm the 18+ / prohibited-input policy before checkout.");
+          setError("Confirm the policy checkbox before checkout.");
           focusAgree();
         } else {
           const parts = [data.detail || data.error || "Checkout failed"];
@@ -108,6 +112,35 @@ export function PricingCheckout() {
     }
   };
 
+  const packs = (
+    <div className="pricing-grid">
+      {CREDIT_PACKS.map((pack) => (
+        <article key={pack.id} className={`pricing-card ${pack.popular ? "is-popular" : ""}`}>
+          {pack.popular && <p className="pricing-badge">Most used</p>}
+          <h2>{pack.name}</h2>
+          <p className="pricing-price">{pack.priceLabel}</p>
+          <p className="pricing-credits">{pack.credits} AI credits</p>
+          <p className="pricing-blurb">{pack.blurb}</p>
+          {PAYMENTS_ENABLED ? (
+            <button
+              type="button"
+              className={`btn-primary ${!agreed && busyPack === null ? "is-needs-policy" : ""}`}
+              disabled={busyPack !== null}
+              aria-describedby={!agreed ? "pricing-policy-agree" : undefined}
+              onClick={() => void buy(pack.id)}
+            >
+              {buyLabel(pack, busyPack === pack.id)}
+            </button>
+          ) : (
+            <button type="button" className="btn-primary" disabled>
+              Coming soon
+            </button>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+
   if (!PAYMENTS_ENABLED) {
     return (
       <div className="pricing-checkout">
@@ -123,20 +156,7 @@ export function PricingCheckout() {
             <a href="mailto:billing@matchafilter.online">billing@matchafilter.online</a>
           </p>
         </div>
-        <div className="pricing-grid">
-          {CREDIT_PACKS.map((pack) => (
-            <article key={pack.id} className={`pricing-card ${pack.popular ? "is-popular" : ""}`}>
-              {pack.popular && <p className="pricing-badge">Most used</p>}
-              <h2>{pack.name}</h2>
-              <p className="pricing-price">{pack.priceLabel}</p>
-              <p className="pricing-credits">{pack.credits} AI credits</p>
-              <p className="pricing-blurb">{pack.blurb}</p>
-              <button type="button" className="btn-primary" disabled>
-                Coming soon
-              </button>
-            </article>
-          ))}
-        </div>
+        {packs}
         <p className="pricing-note">
           Free Remove/Apply never requires credits. Paid AI Restore will return when checkout is
           re-enabled.
@@ -149,74 +169,54 @@ export function PricingCheckout() {
 
   return (
     <div className="pricing-checkout">
-      <label className="pricing-email">
-        <span>Email for receipt (optional)</span>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          autoComplete="email"
-        />
-      </label>
-      <label
-        className={`pricing-agree ${agreeAttention ? "is-attention" : ""}`}
-        htmlFor="pricing-policy-agree"
-      >
-        <input
-          id="pricing-policy-agree"
-          type="checkbox"
-          checked={agreed}
-          disabled={busyPack !== null}
-          onChange={(e) => {
-            setAgreed(e.target.checked);
-            if (e.target.checked) {
-              setNeedsAgree(false);
-              setError(null);
-            }
-          }}
-        />
-        <span>
-          I am 18+. I will not use Matcha Filter on NSFW, adult, pornographic, sexually explicit, or
-          illegal media (including any sexual content involving minors). AI credits are digital
-          goods — successful runs are not cash-refundable. See{" "}
-          <a href="/terms">Terms</a> and <a href="/refund">Refunds</a>.
-        </span>
-      </label>
-      {error && !agreed && (
-        <p className="pricing-error pricing-error-inline" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="pricing-grid">
-        {CREDIT_PACKS.map((pack) => (
-          <article key={pack.id} className={`pricing-card ${pack.popular ? "is-popular" : ""}`}>
-            {pack.popular && <p className="pricing-badge">Most used</p>}
-            <h2>{pack.name}</h2>
-            <p className="pricing-price">{pack.priceLabel}</p>
-            <p className="pricing-credits">{pack.credits} AI credits</p>
-            <p className="pricing-blurb">{pack.blurb}</p>
-            <button
-              type="button"
-              className={`btn-primary ${!agreed && busyPack === null ? "is-needs-policy" : ""}`}
-              disabled={busyPack !== null}
-              aria-describedby={!agreed ? "pricing-policy-agree" : undefined}
-              onClick={() => void buy(pack.id)}
-            >
-              {busyPack === pack.id ? "Redirecting…" : `Buy ${pack.name}`}
-            </button>
-          </article>
-        ))}
-      </div>
+      {packs}
       {error && agreed && (
         <p className="pricing-error" role="alert">
           {error}
         </p>
       )}
+      <div className="pricing-checkout-meta">
+        <label className="pricing-email">
+          <span>Email for receipt (optional)</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
+        </label>
+        <label
+          className={`pricing-agree ${agreeAttention ? "is-attention" : ""}`}
+          htmlFor="pricing-policy-agree"
+        >
+          <input
+            id="pricing-policy-agree"
+            type="checkbox"
+            checked={agreed}
+            disabled={busyPack !== null}
+            onChange={(e) => {
+              setAgreed(e.target.checked);
+              if (e.target.checked) {
+                setNeedsAgree(false);
+                setError(null);
+              }
+            }}
+          />
+          <span>
+            I am 18+. I won’t process prohibited media. Credits are digital — successful runs aren’t
+            cash-refundable. <a href="/terms">Terms</a> · <a href="/refund">Refunds</a>.
+          </span>
+        </label>
+        {error && !agreed && (
+          <p className="pricing-error pricing-error-inline" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
       <p className="pricing-note">
-        Checkout is powered by Creem (merchant of record). Free on-device Remove/Apply never
-        requires credits. Failed or safety-blocked AI jobs return the credit to your wallet — not a
-        card refund.
+        Checkout via Creem. Free Remove/Apply never needs credits. Failed or safety-blocked AI jobs
+        return the credit to your wallet — not a card refund.
       </p>
     </div>
   );
