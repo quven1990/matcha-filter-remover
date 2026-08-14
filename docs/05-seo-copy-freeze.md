@@ -112,6 +112,8 @@
 
 **Change log (2026-08-13):** GSC long-tail pass — title/meta lean Clean Filter + Video (shortened for SERP); video H2; FAQ for video + TikTok how-to. H1 unchanged. Compare demos get non-empty image alts.
 
+**Change log (2026-08-14):** GSC long-tail pass — added `/guide/how-to-remove-matcha-filter-on-tiktok` for TikTok how-to queries; refreshed `/guide/what-is-matcha-filter` title/meta/short answer for viral matcha filter / trend queries; added internal links from `/remove` and general how-to guide.
+
 **HowTo steps (schema):**
 1. Open Matcha Filter Remover  
 2. Upload your photo or short video  

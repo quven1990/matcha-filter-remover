@@ -18,8 +18,9 @@
 | `/` | brand / matcha filter | Matcha Filter | ✅ | Organization + WebSite | yes | H2 已对齐 freeze |
 | `/remove` | **matcha filter remover** | Matcha Filter Remover | ✅ | SoftwareApplication + FAQ + HowTo | yes | Quick answer + 内链已补 |
 | `/apply` | matcha filter / apply | Apply Matcha Filter | ✅ | SoftwareApplication + FAQ | yes | Quick answer 已补 |
-| `/guide/what-is-matcha-filter` | what is matcha filter | What Is the Matcha Filter? | ✅ | Article + definition box | yes | |
+| `/guide/what-is-matcha-filter` | what is matcha filter / viral matcha filter | What Is the Viral Matcha Filter? | ✅ | Article + definition box | yes | GSC snippet refreshed |
 | `/guide/how-to-remove-matcha-filter` | how to remove… | How to Remove… | ✅ | HowTo enriched | yes | |
+| `/guide/how-to-remove-matcha-filter-on-tiktok` | how to remove matcha filter on TikTok | How to Remove the Matcha Filter on TikTok | ✅ | HowTo + FAQ | yes | GSC long-tail page |
 | `/privacy` `/terms` `/cookie` | legal | ✅ | thin OK | no | yes | 低优先级 |
 
 ---

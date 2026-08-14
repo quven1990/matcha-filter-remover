@@ -53,7 +53,7 @@ const faq = [
   },
   {
     q: "How do I remove a matcha filter on TikTok?",
-    a: "TikTok does not export the original unfiltered file once an effect is baked in. Save a screenshot or download the clip you have rights to edit, open this remover, upload, and run Remove effect. For how-to-remove-matcha-filter-on-TikTok style searches, that is the practical path — best-effort cleanup, not a perfect original.",
+    a: "TikTok does not export the original unfiltered file once an effect is baked in. Save a screenshot or download the clip you have rights to edit, open this remover, upload, and run Remove effect. For TikTok-specific steps, see the TikTok matcha filter guide below. Best-effort cleanup, not a perfect original.",
   },
   {
     q: "Can I remove a matcha filter from a TikTok screenshot?",
@@ -260,6 +260,10 @@ export default function RemovePage() {
         <p>
           See also{" "}
           <Link href="/guide/how-to-remove-matcha-filter">how to remove a matcha filter</Link>,{" "}
+          <Link href="/guide/how-to-remove-matcha-filter-on-tiktok">
+            how to remove the matcha filter on TikTok
+          </Link>
+          ,{" "}
           <Link href="/apply">apply matcha filter</Link>, and{" "}
           <Link href="/pricing#packs">AI Restore credits</Link>.
         </p>

@@ -72,7 +72,14 @@ export default function HowToRemovePage() {
 
       <h2>Step-by-step</h2>
       <h3>1. Save media you can edit</h3>
-      <p>Save or screenshot a clip you have rights to edit.</p>
+      <p>
+        Save or screenshot a clip you have rights to edit. If your file came from TikTok, see the
+        dedicated{" "}
+        <Link href="/guide/how-to-remove-matcha-filter-on-tiktok">
+          TikTok matcha filter removal guide
+        </Link>
+        .
+      </p>
       <h3>2. Open Matcha Filter Remover</h3>
       <p>
         Go to <Link href="/remove">Matcha Filter Remover</Link>.
