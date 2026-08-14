@@ -26,9 +26,9 @@ export default function PricingPage() {
         <ExampleCompare
           beforeSrc="/demo/pricing-free.webp?v=3"
           afterSrc="/demo/pricing-ai.webp?v=3"
-          beforeLabel="Free cleanup"
+          beforeLabel="Free · still soft"
           afterLabel="AI Restore"
-          hint="Example · drag to compare · not your file"
+          hint="Example · drag · not your file"
         />
       </div>
 

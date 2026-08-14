@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AI_IMAGE_CREDIT_COST, PAYMENTS_ENABLED } from "@/lib/billing-packs";
+import { AI_IMAGE_CREDIT_COST, CREDIT_PACKS, PAYMENTS_ENABLED } from "@/lib/billing-packs";
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { creditBalanceBucket, elapsedBucket, track } from "@/lib/analytics";
 
@@ -57,8 +57,10 @@ async function resizeJpegBlob(blob: Blob, maxEdge: number, quality: number): Pro
   }
 }
 
+const STARTER_PRICE = CREDIT_PACKS.find((p) => p.id === "starter")?.priceLabel ?? "$3.99";
 const IDLE_HINT =
-  "1 credit · balance stays in this browser. Videos: current frame only. Best-effort — won’t uncover censored detail.";
+  "1 credit · this frame only on video. Best-effort — won’t uncover censored detail.";
+const SELL_HINT = `Free cleared the cast. AI tries the remaining melt · packs from ${STARTER_PRICE}.`;
 
 export function AiEnhanceBar({
   enabled,
@@ -283,17 +285,21 @@ export function AiEnhanceBar({
 
   if (!enabled) return null;
 
-  const noCredits = balance !== null && balance < AI_IMAGE_CREDIT_COST;
+  const balanceKnown = balance !== null;
+  const noCredits = balanceKnown && balance < AI_IMAGE_CREDIT_COST;
+  const hasCredits = balanceKnown && balance >= AI_IMAGE_CREDIT_COST;
   const suspended = walletStatus === "suspended";
   // Only block while a job is running — other blockers need a click so we can show feedback.
   const runDisabled = busy;
-  const needsPolicy = !policyOk && !busy && !suspended && !noCredits;
-  const sellCredits = noCredits && PAYMENTS_ENABLED && !suspended && !busy;
-  const showBuyLink = PAYMENTS_ENABLED && !sellCredits;
+  const needsPolicy = !policyOk && !busy && !suspended && hasCredits;
+  // Wait for /me before choosing Buy vs Run — avoids flashing a pricing Link then swapping to Run.
+  const sellCredits = PAYMENTS_ENABLED && !suspended && !busy && balanceKnown && noCredits;
+  const checkingCredits = PAYMENTS_ENABLED && !suspended && !busy && !balanceKnown;
+  const showBuyLink = PAYMENTS_ENABLED && hasCredits && !busy;
 
   return (
     <div className={`ai-enhance-bar ${busy ? "is-busy" : ""}`} aria-busy={busy}>
-      {!sellCredits && (
+      {hasCredits && (
         <label
           className={`ai-enhance-agree ${message && !policyOk ? "is-attention" : ""}`}
           htmlFor="ai-policy-agree"
@@ -316,12 +322,16 @@ export function AiEnhanceBar({
       )}
       <div className="ai-enhance-bar-actions">
         <span className="ai-credit-pill">
-          {balance === null ? "Credits…" : `${balance} credit${balance === 1 ? "" : "s"}`}
+          {!balanceKnown ? "Credits…" : `${balance} credit${balance === 1 ? "" : "s"}`}
         </span>
-        {sellCredits ? (
+        {checkingCredits ? (
+          <button type="button" className="btn-primary" disabled aria-busy="true">
+            Checking credits…
+          </button>
+        ) : sellCredits ? (
           <Link
             id="ai-buy-credits"
-            href="/pricing"
+            href="/pricing#packs"
             className="btn-primary"
             onClick={() =>
               track("ai_pricing_click", {
@@ -330,7 +340,7 @@ export function AiEnhanceBar({
               })
             }
           >
-            Try AI Restore · from $3.99
+            Try AI Restore · from {STARTER_PRICE}
           </Link>
         ) : (
           <button
@@ -357,7 +367,7 @@ export function AiEnhanceBar({
         {showBuyLink && (
           <Link
             id="ai-buy-credits"
-            href="/pricing"
+            href="/pricing#packs"
             className="btn-ghost"
             onClick={() =>
               track("ai_pricing_click", {
@@ -371,7 +381,7 @@ export function AiEnhanceBar({
           </Link>
         )}
         {!PAYMENTS_ENABLED && noCredits && (
-          <Link id="ai-buy-credits" href="/pricing" className="btn-ghost">
+          <Link id="ai-buy-credits" href="/pricing#packs" className="btn-ghost">
             Credits soon
           </Link>
         )}
@@ -390,9 +400,7 @@ export function AiEnhanceBar({
         </div>
       ) : (
         <p className="ai-enhance-bar-note">
-          {sellCredits
-            ? "Starter from $3.99 · come back here to run AI on this frame. Best-effort — won’t uncover censored detail."
-            : IDLE_HINT}
+          {checkingCredits ? "Loading your credit balance…" : sellCredits ? SELL_HINT : IDLE_HINT}
         </p>
       )}
 

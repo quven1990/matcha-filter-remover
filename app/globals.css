@@ -860,8 +860,80 @@ a {
 }
 
 .engage-tip.is-ai-nudge {
-  background: color-mix(in srgb, var(--matcha) 16%, #fff);
-  border-color: color-mix(in srgb, var(--matcha) 50%, var(--line));
+  background: color-mix(in srgb, var(--matcha) 18%, #fff);
+  border-color: color-mix(in srgb, var(--matcha) 58%, var(--line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--matcha) 18%, transparent);
+}
+
+.engage-tip.is-after-save {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  background: color-mix(in srgb, var(--matcha) 22%, #fff);
+  border: 2px solid color-mix(in srgb, var(--matcha) 70%, var(--line));
+  animation: engage-tip-pop 0.55s ease-out 1;
+}
+
+@keyframes engage-tip-pop {
+  0% {
+    transform: translateY(6px);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.engage-tip-kicker {
+  display: block;
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--matcha-deep);
+}
+
+.engage-tip-title {
+  display: block;
+  font-size: 1.12rem;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.engage-tip-sub {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.engage-tip-sub em {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--matcha-deep);
+}
+
+.engage-tip-cta {
+  width: 100%;
+  min-height: 2.75rem;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
+}
+
+a.engage-tip-cta {
+  display: inline-flex;
+  align-items: center;
+}
+
+.engage-tip-dismiss.is-quiet {
+  opacity: 0.72;
 }
 
 .ai-enhance-block.is-nudge {
@@ -1032,6 +1104,10 @@ a {
   color: var(--ink);
   flex: 1;
   min-width: 12rem;
+}
+
+.engage-tip.is-after-save .engage-tip-copy {
+  min-width: 0;
 }
 
 .engage-tip-dismiss {
@@ -1598,6 +1674,7 @@ a {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  scroll-margin-top: 5.5rem;
 }
 
 .pricing-card {
@@ -2409,11 +2486,20 @@ a {
     align-items: stretch;
   }
 
+  .engage-tip.is-after-save {
+    padding: 0.9rem 0.85rem;
+  }
+
+  .engage-tip-title {
+    font-size: 1.18rem;
+  }
+
   .engage-tip-copy {
     font-size: 0.86rem;
   }
 
-  .engage-tip-dismiss.copy-mobile {
+  .engage-tip-dismiss.copy-mobile,
+  .engage-tip-cta.copy-mobile {
     display: inline-flex;
     align-items: center;
     justify-content: center;

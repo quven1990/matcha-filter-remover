@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import Link from "next/link";
 import {
   durationBucket,
   elapsedBucket,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/analytics";
 import { AiEnhanceBar, type AiProgress } from "@/components/AiEnhanceBar";
 import { ExampleCompare } from "@/components/ExampleCompare";
+import { CREDIT_PACKS, PAYMENTS_ENABLED } from "@/lib/billing-packs";
 import { canvasToSampleBlob, uploadVoluntarySample } from "@/lib/sample-share";
 import {
   MAX_IMAGE_MB,
@@ -22,6 +24,7 @@ import {
   type ProcessMode,
 } from "@/lib/webgl-matcha";
 
+const STARTER_PRICE = CREDIT_PACKS.find((p) => p.id === "starter")?.priceLabel ?? "$3.99";
 const SAMPLE_SHARE_DECISION_KEY = "mfr_sample_share_decision_v1";
 
 function hasSampleShareDecision() {
@@ -329,8 +332,8 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   const [draggingCompare, setDraggingCompare] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [statusProgress, setStatusProgress] = useState(0);
-  /** free = soft tip after upload; ai = stronger nudge after free pass; apply = apply-mode tip */
-  const [engageTip, setEngageTip] = useState<"free" | "ai" | "apply" | null>(null);
+  /** free kept for legacy; upload now opens ai sell tip */
+  const [engageTip, setEngageTip] = useState<"free" | "ai" | "ai_after_save" | "apply" | null>(null);
   const [aiNudge, setAiNudge] = useState(false);
   const [saveSheet, setSaveSheet] = useState<SaveSheetState | null>(null);
   const [mobileSaveUi, setMobileSaveUi] = useState(false);
@@ -394,6 +397,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
   }, []);
 
   const pendingShareTipRef = useRef(false);
+  const pendingAiAfterSaveRef = useRef(false);
 
   const noteCompare = useCallback(
     (action: string) => {
@@ -404,22 +408,24 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     [kind, trackTool],
   );
 
-  const engageTipRef = useRef(engageTip);
-  engageTipRef.current = engageTip;
+  const aiNudgeRef = useRef(false);
 
   const escalateAiTip = useCallback(
     (reason: string) => {
+      // Only highlight the AI block — never rewrite the free tip into an AI tip
+      // (that swap felt like a sudden jump: "Show sliders" → "Go to AI Restore").
       setAiNudge(true);
-      if (engageTipRef.current === "free") {
+      if (!aiNudgeRef.current) {
         trackTool("tool_ai_nudge", { reason, media_type: kind || undefined });
-        setEngageTip("ai");
       }
+      aiNudgeRef.current = true;
     },
     [kind, trackTool],
   );
 
   useEffect(() => {
-    if (!ready || !isRemove || aiPass || engageTip !== "free") return;
+    // AI sell tip already shows on upload; idle timer only reinforces the AI-block highlight.
+    if (!ready || !isRemove || aiPass || engageTip !== "ai" || aiNudgeRef.current) return;
     const delay = hardCase ? 2800 : 7500;
     const timer = window.setTimeout(() => escalateAiTip(hardCase ? "hard_case_timer" : "idle_timer"), delay);
     return () => window.clearTimeout(timer);
@@ -511,6 +517,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setVideoDuration(0);
     setEngageTip(null);
     setAiNudge(false);
+    aiNudgeRef.current = false;
     setAutoTuned(false);
     setShareState("idle");
     setShareError(null);
@@ -520,6 +527,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setAiPass(false);
     aiCanvasRef.current = null;
     pendingShareTipRef.current = false;
+    pendingAiAfterSaveRef.current = false;
     clearStatus();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -591,12 +599,40 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     showPostSaveShareTip();
   }, [shareModalOpen, shareState, showPostSaveShareTip]);
 
+  const runAfterDownloadAiEscalate = useCallback(() => {
+    if (!isRemove || aiPass) return;
+    setAiNudge(true);
+    setEngageTip("ai_after_save");
+    trackTool("tool_ai_nudge", { reason: "after_download", media_type: kind || undefined });
+    // Don't auto-scroll — tip + CTA already sit in the controls. Auto scroll felt like a sudden jump.
+  }, [aiPass, isRemove, kind, trackTool]);
+
+  /** After free save: escalate AI first. Sample-share tip only when AI already ran (or Apply). */
+  const queueAfterDownloadEscalate = useCallback(() => {
+    if (isRemove && !aiPass) {
+      if (prefersMobileSave()) {
+        pendingAiAfterSaveRef.current = true;
+        return;
+      }
+      runAfterDownloadAiEscalate();
+      return;
+    }
+    queuePostSaveShareTip();
+  }, [aiPass, isRemove, queuePostSaveShareTip, runAfterDownloadAiEscalate]);
+
   useEffect(() => {
     if (saveSheet) return;
     if (!pendingShareTipRef.current) return;
     pendingShareTipRef.current = false;
     showPostSaveShareTip();
   }, [saveSheet, showPostSaveShareTip]);
+
+  useEffect(() => {
+    if (saveSheet) return;
+    if (!pendingAiAfterSaveRef.current) return;
+    pendingAiAfterSaveRef.current = false;
+    runAfterDownloadAiEscalate();
+  }, [saveSheet, runAfterDownloadAiEscalate]);
 
   const dismissShareModal = useCallback(
     (reason: string) => {
@@ -1049,6 +1085,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setVideoDuration(0);
     setEngageTip(null);
     setAiNudge(false);
+    aiNudgeRef.current = false;
     setAutoTuned(false);
     clearStatus();
     uploadReadyAtRef.current = null;
@@ -1064,6 +1101,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setBusy(true);
     setEngageTip(null);
     setAiNudge(false);
+    aiNudgeRef.current = false;
     setAutoTuned(false);
     setShareState("idle");
     setShareError(null);
@@ -1073,6 +1111,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
     setAiPass(false);
     aiCanvasRef.current = null;
     pendingShareTipRef.current = false;
+    pendingAiAfterSaveRef.current = false;
     startTimeRef.current = performance.now();
     uploadReadyAtRef.current = null;
     compareSeenRef.current.clear();
@@ -1303,8 +1342,12 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             ? durationBucket(video.duration)
             : undefined,
       });
-      setEngageTip(isRemove ? "free" : "apply");
-      setAiNudge(false);
+      setEngageTip(isRemove ? "ai" : "apply");
+      setAiNudge(isRemove);
+      aiNudgeRef.current = isRemove;
+      if (isRemove) {
+        trackTool("tool_ai_nudge", { reason: "upload_ready", media_type: mediaType });
+      }
       setShareState("idle");
       setShareError(null);
     } catch (e) {
@@ -1460,7 +1503,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
         export_kind: opts.exportKind,
       });
     }
-    queuePostSaveShareTip();
+    queueAfterDownloadEscalate();
   };
 
   const download = async (opts?: { as?: "auto" | "frame" | "video" }) => {
@@ -1664,7 +1707,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
           export_kind: "video",
         });
       }
-      queuePostSaveShareTip();
+      queueAfterDownloadEscalate();
 
       if (picked.ext === "webm" && sourceExt && sourceExt !== "webm") {
         setError({
@@ -2056,21 +2099,32 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
 
         <aside className="controls-panel">
           {ready && engageTip && (
-            <div className={`engage-tip ${engageTip === "ai" ? "is-ai-nudge" : ""}`} role="status">
+            <div
+              className={`engage-tip ${engageTip === "ai" || engageTip === "ai_after_save" ? "is-ai-nudge is-after-save" : ""}`}
+              role="status"
+            >
               <div className="engage-tip-copy">
                 {engageTip === "apply" ? (
                   <>
                     <strong>Next:</strong> use the sliders below to fine-tune the matcha look.
                   </>
-                ) : engageTip === "free" ? (
+                ) : engageTip === "ai_after_save" ? (
                   <>
-                    <strong>Free remove is on.</strong> Tweak the sliders first. If it still looks
-                    melted, AI Restore is below.
+                    <span className="engage-tip-kicker">Just saved · free cleanup</span>
+                    <strong className="engage-tip-title">Still look melted?</strong>
+                    <span className="engage-tip-sub">
+                      Paid <em>AI Restore</em> usually looks cleaner on hard melts — from{" "}
+                      {STARTER_PRICE}.
+                    </span>
                   </>
                 ) : (
                   <>
-                    <strong>Local cleanup hit its limit.</strong> ↓ Drag the compare — see what AI
-                    Restore still tries (1 credit).
+                    <span className="engage-tip-kicker">Free is on · AI looks better</span>
+                    <strong className="engage-tip-title">Hard melt? Try paid AI Restore</strong>
+                    <span className="engage-tip-sub">
+                      Free clears the cast. Credits unlock a stronger restore — packs from{" "}
+                      {STARTER_PRICE}.
+                    </span>
                   </>
                 )}
               </div>
@@ -2085,35 +2139,43 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 >
                   Show sliders
                 </button>
-              ) : engageTip === "ai" ? (
+              ) : PAYMENTS_ENABLED ? (
+                <Link
+                  href="/pricing#packs"
+                  className="btn-primary engage-tip-cta"
+                  onClick={() => {
+                    trackTool("ai_pricing_click", {
+                      from: engageTip === "ai_after_save" ? "engage_tip_after_save" : "engage_tip",
+                      media_type: kind || undefined,
+                    });
+                    setEngageTip(null);
+                  }}
+                >
+                  Get AI credits · from {STARTER_PRICE}
+                </Link>
+              ) : (
                 <button
                   type="button"
-                  className="engage-tip-dismiss copy-mobile"
+                  className="btn-primary engage-tip-cta"
                   onClick={() => {
                     setEngageTip(null);
-                    scrollToAi("engage_tip");
+                    scrollToAi(engageTip === "ai_after_save" ? "after_download_tip" : "engage_tip");
                   }}
                 >
                   Go to AI Restore
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  className="engage-tip-dismiss copy-mobile"
-                  onClick={() => {
-                    setEngageTip(null);
-                    scrollToAdjust("engage_tip");
-                  }}
-                >
-                  Show sliders
-                </button>
               )}
               <button
                 type="button"
-                className="engage-tip-dismiss copy-desktop"
-                onClick={() => setEngageTip(null)}
+                className="engage-tip-dismiss is-quiet"
+                onClick={() => {
+                  setEngageTip(null);
+                  if (engageTip !== "apply") {
+                    scrollToAi(engageTip === "ai_after_save" ? "after_download_dismiss" : "engage_tip_dismiss");
+                  }
+                }}
               >
-                Got it
+                {engageTip === "apply" ? "Got it" : "See Free vs AI ↓"}
               </button>
             </div>
           )}
@@ -2281,19 +2343,19 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
               className={`control-block ai-enhance-block ${aiNudge && !aiPass ? "is-nudge" : ""}`}
             >
               <div className="control-block-head">
-                <h2>Free hit the ceiling?</h2>
+                <h2>Still melted after free?</h2>
                 <p>
-                  Sliders cleared the cast. If skin or hair still looks melted,{" "}
-                  <strong>AI Restore</strong> tries one more layer on this frame — 1 credit ·
+                  Free WebGL clears the green cast. If skin or hair still looks soft,{" "}
+                  <strong>AI Restore</strong> tries the remaining melt on this frame — 1 credit ·
                   best-effort.
                 </p>
               </div>
               <ExampleCompare
                 beforeSrc="/demo/ai-example-before.webp?v=3"
                 afterSrc="/demo/ai-example-after.webp?v=3"
-                beforeLabel="Free cleanup"
+                beforeLabel="Free · still soft"
                 afterLabel="AI Restore"
-                hint="Example · drag to compare · not your file"
+                hint="Example · drag · not your file"
               />
               <AiEnhanceBar
                 enabled={ready}

@@ -218,12 +218,12 @@ export default function RemovePage() {
           the original file, and will not unblur or uncover censored areas.{" "}
           {PAYMENTS_ENABLED ? (
             <>
-              Credits: <Link href="/pricing">Pricing</Link>.
+              Credits: <Link href="/pricing#packs">Pricing</Link>.
             </>
           ) : (
             <>
               Card checkout is temporarily paused; the free remover still works. See{" "}
-              <Link href="/pricing">Pricing</Link> when live billing reopens.
+              <Link href="/pricing#packs">Pricing</Link> when live billing reopens.
             </>
           )}
         </p>
@@ -261,7 +261,7 @@ export default function RemovePage() {
           See also{" "}
           <Link href="/guide/how-to-remove-matcha-filter">how to remove a matcha filter</Link>,{" "}
           <Link href="/apply">apply matcha filter</Link>, and{" "}
-          <Link href="/pricing">AI Restore credits</Link>.
+          <Link href="/pricing#packs">AI Restore credits</Link>.
         </p>
       </section>
 

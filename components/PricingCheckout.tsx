@@ -22,6 +22,18 @@ export function PricingCheckout() {
     track("pricing_view");
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#packs") return;
+    const el = document.getElementById("packs");
+    if (!el) return;
+    // Next client nav often skips native hash scroll — do it after paint.
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, []);
+
   const focusAgree = () => {
     setNeedsAgree(true);
     const el = document.getElementById("pricing-policy-agree");
@@ -113,7 +125,7 @@ export function PricingCheckout() {
   };
 
   const packs = (
-    <div className="pricing-grid">
+    <div id="packs" className="pricing-grid">
       {CREDIT_PACKS.map((pack) => (
         <article key={pack.id} className={`pricing-card ${pack.popular ? "is-popular" : ""}`}>
           {pack.popular && <p className="pricing-badge">Most used</p>}
