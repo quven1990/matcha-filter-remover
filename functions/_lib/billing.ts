@@ -5,6 +5,7 @@ export type BillingEnv = {
   CREEM_API_KEY?: string;
   CREEM_WEBHOOK_SECRET?: string;
   CREEM_API_BASE?: string;
+  CREEM_PRODUCT_TRIAL?: string;
   CREEM_PRODUCT_STARTER?: string;
   CREEM_PRODUCT_PLUS?: string;
   CREEM_PRODUCT_PRO?: string;
@@ -63,9 +64,10 @@ export function creemApiBase(env: BillingEnv): string {
   return (env.CREEM_API_BASE || "https://test-api.creem.io").trim().replace(/\/$/, "");
 }
 
-export type PackId = "starter" | "plus" | "pro";
+export type PackId = "trial" | "starter" | "plus" | "pro";
 
 export const PACK_CREDITS: Record<PackId, number> = {
+  trial: 2,
   starter: 5,
   plus: 20,
   pro: 60,
@@ -73,6 +75,7 @@ export const PACK_CREDITS: Record<PackId, number> = {
 
 export function productIdForPack(env: BillingEnv, pack: PackId): string | null {
   const map: Record<PackId, string | undefined> = {
+    trial: env.CREEM_PRODUCT_TRIAL,
     starter: env.CREEM_PRODUCT_STARTER,
     plus: env.CREEM_PRODUCT_PLUS,
     pro: env.CREEM_PRODUCT_PRO,
@@ -82,6 +85,7 @@ export function productIdForPack(env: BillingEnv, pack: PackId): string | null {
 }
 
 export function packFromProductId(env: BillingEnv, productId: string): PackId | null {
+  if (productId && productId === env.CREEM_PRODUCT_TRIAL) return "trial";
   if (productId && productId === env.CREEM_PRODUCT_STARTER) return "starter";
   if (productId && productId === env.CREEM_PRODUCT_PLUS) return "plus";
   if (productId && productId === env.CREEM_PRODUCT_PRO) return "pro";

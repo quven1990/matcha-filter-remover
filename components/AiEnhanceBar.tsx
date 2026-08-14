@@ -57,10 +57,10 @@ async function resizeJpegBlob(blob: Blob, maxEdge: number, quality: number): Pro
   }
 }
 
-const STARTER_PRICE = CREDIT_PACKS.find((p) => p.id === "starter")?.priceLabel ?? "$3.99";
+const ENTRY_PRICE = CREDIT_PACKS[0]?.priceLabel ?? "$3.99";
 const IDLE_HINT =
   "1 credit · this frame only on video. Best-effort — won’t uncover censored detail.";
-const SELL_HINT = `Free cleared the cast. AI tries the remaining melt · packs from ${STARTER_PRICE}.`;
+const SELL_HINT = `Free cleared the cast. AI tries this frame again · from ${ENTRY_PRICE}.`;
 
 export function AiEnhanceBar({
   enabled,
@@ -151,7 +151,7 @@ export function AiEnhanceBar({
       setMessageTone("bad");
       setMessage(
         PAYMENTS_ENABLED
-          ? "No credits left — tap Buy credits below, then come back to run AI Restore."
+          ? "No credits left — use Restore this frame below, then come back to run AI Restore."
           : "No credits left — checkout is paused right now. Check Pricing for updates.",
       );
       document.getElementById("ai-buy-credits")?.focus();
@@ -340,7 +340,7 @@ export function AiEnhanceBar({
               })
             }
           >
-            Try AI Restore · from {STARTER_PRICE}
+            Restore this frame · from {ENTRY_PRICE}
           </Link>
         ) : (
           <button
@@ -377,7 +377,7 @@ export function AiEnhanceBar({
             }
             aria-disabled={busy || undefined}
           >
-            Buy credits
+            Restore another frame
           </Link>
         )}
         {!PAYMENTS_ENABLED && noCredits && (

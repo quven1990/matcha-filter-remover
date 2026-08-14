@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 const aiCheckoutNote = PAYMENTS_ENABLED
-  ? "Buy credits on Pricing, confirm you are 18+, then run AI Restore on this page (1 credit per still / current video frame)."
+  ? "Use Restore this frame from the tool, confirm you are 18+, then run AI Restore on this page (1 credit per still / current video frame)."
   : "AI Restore checkout is temporarily paused while live billing is enabled. The free on-device remover still works.";
 
 const faq = [

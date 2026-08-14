@@ -24,7 +24,7 @@ import {
   type ProcessMode,
 } from "@/lib/webgl-matcha";
 
-const STARTER_PRICE = CREDIT_PACKS.find((p) => p.id === "starter")?.priceLabel ?? "$3.99";
+const ENTRY_PRICE = CREDIT_PACKS[0]?.priceLabel ?? "$3.99";
 const SAMPLE_SHARE_DECISION_KEY = "mfr_sample_share_decision_v1";
 
 function hasSampleShareDecision() {
@@ -2114,7 +2114,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     <strong className="engage-tip-title">Still look melted?</strong>
                     <span className="engage-tip-sub">
                       Paid <em>AI Restore</em> usually looks cleaner on hard melts — from{" "}
-                      {STARTER_PRICE}.
+                      {ENTRY_PRICE}.
                     </span>
                   </>
                 ) : (
@@ -2122,8 +2122,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     <span className="engage-tip-kicker">Free is on · AI looks better</span>
                     <strong className="engage-tip-title">Hard melt? Try paid AI Restore</strong>
                     <span className="engage-tip-sub">
-                      Free clears the cast. Credits unlock a stronger restore — packs from{" "}
-                      {STARTER_PRICE}.
+                      Free clears the cast. AI tries this frame again — from {ENTRY_PRICE}.
                     </span>
                   </>
                 )}
@@ -2151,7 +2150,7 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                     setEngageTip(null);
                   }}
                 >
-                  Get AI credits · from {STARTER_PRICE}
+                  Restore this frame · from {ENTRY_PRICE}
                 </Link>
               ) : (
                 <button

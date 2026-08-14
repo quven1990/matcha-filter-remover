@@ -5,8 +5,9 @@
  * Creem merchant approved 2026-08-13 — payments open.
  */
 export const PAYMENTS_ENABLED = true;
+export const TRIAL_PACK_ENABLED = process.env.NEXT_PUBLIC_TRIAL_PACK_ENABLED === "true";
 
-export type CreditPackId = "starter" | "plus" | "pro";
+export type CreditPackId = "trial" | "starter" | "plus" | "pro";
 
 export type CreditPack = {
   id: CreditPackId;
@@ -17,7 +18,14 @@ export type CreditPack = {
   popular?: boolean;
 };
 
-export const CREDIT_PACKS: CreditPack[] = [
+const BASE_CREDIT_PACKS: CreditPack[] = [
+  {
+    id: "trial",
+    name: "Try",
+    credits: 2,
+    priceLabel: "$1.99",
+    blurb: "Restore this frame first, then decide.",
+  },
   {
     id: "starter",
     name: "Starter",
@@ -41,6 +49,10 @@ export const CREDIT_PACKS: CreditPack[] = [
     blurb: "More credits when you process often.",
   },
 ];
+
+export const CREDIT_PACKS: CreditPack[] = TRIAL_PACK_ENABLED
+  ? BASE_CREDIT_PACKS
+  : BASE_CREDIT_PACKS.filter((pack) => pack.id !== "trial");
 
 /** 1 credit = 1 AI image enhance (max edge length enforced server-side). */
 export const AI_IMAGE_CREDIT_COST = 1;

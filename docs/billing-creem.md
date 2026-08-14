@@ -6,6 +6,7 @@ Merchant-of-record checkout for one-time credit packs. No Google login required 
 ## Products to create in Creem (one-time)
 | Pack | Credits | Suggested price | Env secret |
 |---|---:|---:|---|
+| Trial | 2 | $1.99 | `CREEM_PRODUCT_TRIAL` |
 | Starter | 5 | $3.99 | `CREEM_PRODUCT_STARTER` |
 | Plus | 20 | $9.99 | `CREEM_PRODUCT_PLUS` |
 | Pro | 60 | $24.99 | `CREEM_PRODUCT_PRO` |
@@ -14,6 +15,7 @@ Merchant-of-record checkout for one-time credit packs. No Google login required 
 ```bash
 npx wrangler pages secret put CREEM_API_KEY --project-name matcha-filter
 npx wrangler pages secret put CREEM_WEBHOOK_SECRET --project-name matcha-filter
+npx wrangler pages secret put CREEM_PRODUCT_TRIAL --project-name matcha-filter
 npx wrangler pages secret put CREEM_PRODUCT_STARTER --project-name matcha-filter
 npx wrangler pages secret put CREEM_PRODUCT_PLUS --project-name matcha-filter
 npx wrangler pages secret put CREEM_PRODUCT_PRO --project-name matcha-filter

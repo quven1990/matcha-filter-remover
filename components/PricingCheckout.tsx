@@ -7,7 +7,7 @@ import { track } from "@/lib/analytics";
 
 function buyLabel(pack: (typeof CREDIT_PACKS)[number], busy: boolean) {
   if (busy) return "Redirecting…";
-  if (pack.id === "starter") return `Try · ${pack.priceLabel}`;
+  if (pack.id === "trial" || pack.id === "starter") return `Try · ${pack.priceLabel}`;
   return `Buy ${pack.name} · ${pack.priceLabel}`;
 }
 
