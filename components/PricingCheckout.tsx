@@ -14,9 +14,7 @@ function buyLabel(pack: (typeof CREDIT_PACKS)[number], busy: boolean) {
 export function PricingCheckout() {
   const [busyPack, setBusyPack] = useState<CreditPackId | null>(null);
   const [email, setEmail] = useState("");
-  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsAgree, setNeedsAgree] = useState(false);
 
   useEffect(() => {
     track("pricing_view");
@@ -34,13 +32,6 @@ export function PricingCheckout() {
     return () => window.clearTimeout(t);
   }, []);
 
-  const focusAgree = () => {
-    setNeedsAgree(true);
-    const el = document.getElementById("pricing-policy-agree");
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    el?.focus();
-  };
-
   const buy = async (pack: CreditPackId) => {
     setError(null);
     if (!PAYMENTS_ENABLED) {
@@ -48,14 +39,8 @@ export function PricingCheckout() {
       track("billing_checkout_blocked", { pack, reason: "payments_paused" });
       return;
     }
-    if (!agreed) {
-      setError("Check the box below, then tap Buy again.");
-      track("billing_checkout_blocked", { pack, reason: "no_agree" });
-      focusAgree();
-      return;
-    }
-    setNeedsAgree(false);
     setBusyPack(pack);
+    // Tapping Buy is the consent (18+ / Terms / no prohibited media).
     track("billing_checkout_click", { pack });
     try {
       const walletId = getOrCreateWalletId();
@@ -103,8 +88,7 @@ export function PricingCheckout() {
               "This wallet is suspended for policy or safety reasons. Contact billing@ or abuse@.",
           );
         } else if (data.error === "policy_required") {
-          setError("Confirm the policy checkbox before checkout.");
-          focusAgree();
+          setError("Please retry checkout. If this keeps happening, refresh the page.");
         } else {
           const parts = [data.detail || data.error || "Checkout failed"];
           if (data.hint) parts.push(data.hint);
@@ -136,9 +120,8 @@ export function PricingCheckout() {
           {PAYMENTS_ENABLED ? (
             <button
               type="button"
-              className={`btn-primary ${!agreed && busyPack === null ? "is-needs-policy" : ""}`}
+              className="btn-primary"
               disabled={busyPack !== null}
-              aria-describedby={!agreed ? "pricing-policy-agree" : undefined}
               onClick={() => void buy(pack.id)}
             >
               {buyLabel(pack, busyPack === pack.id)}
@@ -177,12 +160,15 @@ export function PricingCheckout() {
     );
   }
 
-  const agreeAttention = needsAgree || Boolean(error && !agreed);
-
   return (
     <div className="pricing-checkout">
       {packs}
-      {error && agreed && (
+      <p className="pricing-agree-note">
+        By tapping Buy you confirm you are 18+, won’t submit prohibited media, and accept{" "}
+        <a href="/terms">Terms</a> and <a href="/refund">Refunds</a>. Credits are digital —
+        successful runs aren’t cash-refundable.
+      </p>
+      {error && (
         <p className="pricing-error" role="alert">
           {error}
         </p>
@@ -198,33 +184,6 @@ export function PricingCheckout() {
             autoComplete="email"
           />
         </label>
-        <label
-          className={`pricing-agree ${agreeAttention ? "is-attention" : ""}`}
-          htmlFor="pricing-policy-agree"
-        >
-          <input
-            id="pricing-policy-agree"
-            type="checkbox"
-            checked={agreed}
-            disabled={busyPack !== null}
-            onChange={(e) => {
-              setAgreed(e.target.checked);
-              if (e.target.checked) {
-                setNeedsAgree(false);
-                setError(null);
-              }
-            }}
-          />
-          <span>
-            I am 18+. I won’t process prohibited media. Credits are digital — successful runs aren’t
-            cash-refundable. <a href="/terms">Terms</a> · <a href="/refund">Refunds</a>.
-          </span>
-        </label>
-        {error && !agreed && (
-          <p className="pricing-error pricing-error-inline" role="alert">
-            {error}
-          </p>
-        )}
       </div>
       <p className="pricing-note">
         Checkout via Creem. Free Remove/Apply never needs credits. Failed or safety-blocked AI jobs

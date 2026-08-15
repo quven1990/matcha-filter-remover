@@ -42,7 +42,7 @@ npx wrangler d1 migrations apply matcha-filter-samples --remote
 Includes wallet safety columns (`status`, `safety_block_count`) from `0003_wallet_safety.sql`.
 
 ## Flow
-1. `/pricing` → POST `/api/billing/checkout` (requires `accepts_policy`) → Creem hosted checkout
+1. `/pricing` → tap Buy (implies 18+ / Terms) → POST `/api/billing/checkout` → Creem hosted checkout
 2. Webhook grants credits to `metadata.wallet_id`
 3. `/billing/success` confirms balance
 4. `/remove` → confirm policy → **Run AI Restore** → POST `/api/ai/enhance` (1 credit; refund on failure)
