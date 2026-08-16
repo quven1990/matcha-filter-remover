@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   description:
     "What the viral matcha filter trend is, why people search for it, and how to apply or clean the green TikTok-style look safely.",
   alternates: { canonical: "/guide/viral-matcha-filter-trend" },
+  openGraph: {
+    title: "Viral Matcha Filter Trend Explained",
+    description:
+      "Understand the viral matcha filter trend and safe ways to apply or clean the green TikTok-style look.",
+    url: "https://matchafilter.online/guide/viral-matcha-filter-trend",
+  },
 };
 
 export default function ViralMatchaFilterTrendPage() {

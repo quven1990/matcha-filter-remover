@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   description:
     "How to remove a matcha filter from a short video online. Free browser cleanup for green cast and grain, plus honest limits for AI Restore.",
   alternates: { canonical: "/guide/remove-matcha-filter-from-video" },
+  openGraph: {
+    title: "Remove Matcha Filter From Video (Free)",
+    description:
+      "Free browser cleanup for matcha filter videos, with honest limits for AI Restore and baked-in effects.",
+    url: "https://matchafilter.online/guide/remove-matcha-filter-from-video",
+  },
 };
 
 export default function RemoveMatchaFilterFromVideoPage() {
