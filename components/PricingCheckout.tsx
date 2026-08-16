@@ -14,6 +14,7 @@ function buyLabel(pack: (typeof CREDIT_PACKS)[number], busy: boolean) {
 export function PricingCheckout() {
   const [busyPack, setBusyPack] = useState<CreditPackId | null>(null);
   const [email, setEmail] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,6 +35,19 @@ export function PricingCheckout() {
 
   const buy = async (pack: CreditPackId) => {
     setError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setEmailTouched(true);
+      setError("Enter your email first so Creem can send the receipt and unlock credits.");
+      track("billing_checkout_blocked", { pack, reason: "email_required" });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setEmailTouched(true);
+      setError("Enter a valid email address before checkout.");
+      track("billing_checkout_blocked", { pack, reason: "invalid_email" });
+      return;
+    }
     if (!PAYMENTS_ENABLED) {
       setError("Card checkout is temporarily paused. Free Remove/Apply still works.");
       track("billing_checkout_blocked", { pack, reason: "payments_paused" });
@@ -50,7 +64,7 @@ export function PricingCheckout() {
         body: JSON.stringify({
           pack,
           wallet_id: walletId,
-          email: email.trim() || undefined,
+          email: cleanEmail,
           accepts_policy: true,
         }),
       });
@@ -162,6 +176,27 @@ export function PricingCheckout() {
 
   return (
     <div className="pricing-checkout">
+      <div className="pricing-checkout-meta">
+        <label className="pricing-email">
+          <span>Email for receipt and credits</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            aria-invalid={
+              emailTouched && email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+            }
+            required
+          />
+        </label>
+        <p className="pricing-trust-note">
+          Secure checkout by Creem. No account required. Credits unlock on this browser after
+          payment.
+        </p>
+      </div>
       {packs}
       <p className="pricing-agree-note">
         By tapping Buy you confirm you are 18+, won’t submit prohibited media, and accept{" "}
@@ -173,18 +208,6 @@ export function PricingCheckout() {
           {error}
         </p>
       )}
-      <div className="pricing-checkout-meta">
-        <label className="pricing-email">
-          <span>Email for receipt (optional)</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
-          />
-        </label>
-      </div>
       <p className="pricing-note">
         Checkout via Creem. Free Remove/Apply never needs credits. Failed or safety-blocked AI jobs
         return the credit to your wallet — not a card refund.
