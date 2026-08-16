@@ -49,7 +49,7 @@ const faq = [
   },
   {
     q: "How do I remove a matcha filter from a video?",
-    a: "Upload a short MP4, WebM, or MOV, run free Remove effect on-device, scrub frames to check, then download. That covers searches like matcha filter remover video. AI Restore (when open) only fixes the current frame as a still — not the whole clip.",
+    a: "Upload a short MP4, WebM, or MOV, run free Remove effect on-device, scrub frames to check, then download. That covers searches like matcha filter remover video. AI Restore (when open) only fixes the current frame as a still — not the whole clip. See the video guide below for details.",
   },
   {
     q: "How do I remove a matcha filter on TikTok?",
@@ -180,7 +180,26 @@ export default function RemovePage() {
           compare split, then download. Free Remove processes the video on-device — that is the path
           for <em>matcha filter remover video</em> / <em>remove matcha filter video</em>. Optional
           AI Restore only enhances the current frame as a still when the melt is too heavy for
-          sliders.
+          sliders. For video-specific steps, read{" "}
+          <Link href="/guide/remove-matcha-filter-from-video">
+            how to remove a matcha filter from video
+          </Link>
+          .
+        </p>
+      </section>
+
+      <section className="section">
+        <h2>Viral and TikTok matcha filter guides</h2>
+        <p>
+          If you found this page through the viral matcha filter trend, start with the{" "}
+          <Link href="/guide/viral-matcha-filter-trend">viral matcha filter trend guide</Link>.
+          For TikTok screenshots or downloaded clips, use the{" "}
+          <Link href="/guide/how-to-remove-matcha-filter-on-tiktok">
+            TikTok matcha filter removal guide
+          </Link>
+          . For video exports, use the{" "}
+          <Link href="/guide/remove-matcha-filter-from-video">video matcha filter remover guide</Link>
+          .
         </p>
       </section>
 
@@ -263,6 +282,12 @@ export default function RemovePage() {
           <Link href="/guide/how-to-remove-matcha-filter-on-tiktok">
             how to remove the matcha filter on TikTok
           </Link>
+          ,{" "}
+          <Link href="/guide/remove-matcha-filter-from-video">
+            remove matcha filter from video
+          </Link>
+          ,{" "}
+          <Link href="/guide/viral-matcha-filter-trend">viral matcha filter trend</Link>
           ,{" "}
           <Link href="/apply">apply matcha filter</Link>, and{" "}
           <Link href="/pricing#packs">AI Restore credits</Link>.

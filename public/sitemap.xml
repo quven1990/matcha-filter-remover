@@ -36,6 +36,16 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://matchafilter.online/guide/remove-matcha-filter-from-video</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://matchafilter.online/guide/viral-matcha-filter-trend</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://matchafilter.online/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
