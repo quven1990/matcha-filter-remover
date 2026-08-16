@@ -56,6 +56,8 @@ export function SiteFooter() {
             alt="Featured on Smol List"
             width={180}
             height={44}
+            loading="lazy"
+            decoding="async"
           />
         </a>
         <a
@@ -70,6 +72,8 @@ export function SiteFooter() {
             alt="Featured on Findly.tools"
             width={175}
             height={55}
+            loading="lazy"
+            decoding="async"
           />
         </a>
         <a
@@ -84,6 +88,8 @@ export function SiteFooter() {
             alt="Featured on SaaSTool.site"
             width={175}
             height={54}
+            loading="lazy"
+            decoding="async"
           />
         </a>
         <a
@@ -98,6 +104,8 @@ export function SiteFooter() {
             alt="Featured on PostYourStartup"
             width={212}
             height={55}
+            loading="lazy"
+            decoding="async"
           />
         </a>
         <a
@@ -114,6 +122,8 @@ export function SiteFooter() {
             alt="Launchpadly Startup Directory"
             width={260}
             height={48}
+            loading="lazy"
+            decoding="async"
           />
         </a>
       </div>

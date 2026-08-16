@@ -8,12 +8,16 @@ import "./globals.css";
 const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["500", "600", "700"],
+  weight: ["600"],
+  display: "swap",
+  preload: true,
 });
 
 const sans = Manrope({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -109,7 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJson) }}
         />
-        {/* Privacy-friendly analytics by Plausible */}
+        {/* Privacy-friendly analytics by Plausible — small, keep after first paint */}
         <Script
           async
           src="https://plausible.shipsolo.io/js/pa-I3fncP_hihcj0SQKo2Teu.js"
@@ -119,26 +123,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {`window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
 plausible.init()`}
         </Script>
-        {/* Google tag (gtag.js) */}
-        <Script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-GZRT1YKE5C"
-          strategy="afterInteractive"
+        {/* GTAG / Clarity parse into 100ms+ main-thread tasks. Wait until load + idle so they don't compete with hydration / first input. Plausible still covers the funnel. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function load(){if(document.getElementById("ga4-gtag-src"))return;window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments)};window.gtag("js",new Date());window.gtag("config","G-GZRT1YKE5C");var g=document.createElement("script");g.id="ga4-gtag-src";g.async=true;g.src="https://www.googletagmanager.com/gtag/js?id=G-GZRT1YKE5C";document.head.appendChild(g);var c=document.createElement("script");c.id="clarity-src";c.async=true;c.src="https://www.clarity.ms/tag/xzfom2wtm3";document.head.appendChild(c)}function schedule(){setTimeout(function(){if("requestIdleCallback"in window)requestIdleCallback(load,{timeout:6000});else load()},2500)}if(document.readyState==="complete")schedule();else window.addEventListener("load",schedule,{once:true})})();`,
+          }}
         />
-        <Script id="ga4-gtag" strategy="afterInteractive">
-          {`window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-GZRT1YKE5C');`}
-        </Script>
-        {/* Microsoft Clarity */}
-        <Script id="microsoft-clarity" strategy="afterInteractive">
-          {`(function(c,l,a,r,i,t,y){
-c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-})(window, document, "clarity", "script", "xzfom2wtm3");`}
-        </Script>
         <ClientChunkRecovery />
         <SiteHeader />
         <main>{children}</main>
