@@ -215,8 +215,8 @@ export function PricingCheckout() {
           </p>
         )}
         <p className="pricing-trust-note">
-          Secure checkout by Creem. No account required. Credits unlock on this browser after
-          payment.
+          Secure checkout by Creem. Billing address may be requested for tax and card verification.
+          Credits are added instantly after payment.
         </p>
       </div>
       {packs}
