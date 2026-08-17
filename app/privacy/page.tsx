@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <article className="prose">
       <h1>Privacy Policy</h1>
-      <p>Last updated: August 12, 2026</p>
+      <p>Last updated: August 17, 2026</p>
       <p>
         Matcha Filter (“we”) provides an on-device photo and video toolkit at
         matchafilter.online, with optional paid AI restore credits.
@@ -42,6 +42,13 @@ export default function PrivacyPage() {
         Credit purchases are processed by Creem (merchant of record). Creem receives
         payment details; we store wallet id, optional email, order ids, and credit
         ledger entries in Cloudflare D1 to deliver credits.
+      </p>
+      <p>
+        If you enter an email address and start a checkout but do not complete payment,
+        we may send one checkout reminder within about 30 minutes with a continue-checkout
+        link and support contact. We do not use checkout reminder emails for newsletters
+        or advertising campaigns, and each reminder includes a link to opt out of future
+        checkout reminders.
       </p>
       <h3>Voluntary sample sharing</h3>
       <p>

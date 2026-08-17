@@ -2,6 +2,17 @@
 
 export type BillingEnv = {
   SAMPLES_DB: D1Database;
+  EMAIL?: {
+    send: (message: {
+      to: string;
+      from: { email: string; name?: string };
+      replyTo?: string;
+      subject: string;
+      text: string;
+      html: string;
+      headers?: Record<string, string>;
+    }) => Promise<unknown>;
+  };
   CREEM_API_KEY?: string;
   CREEM_WEBHOOK_SECRET?: string;
   CREEM_API_BASE?: string;
@@ -9,6 +20,9 @@ export type BillingEnv = {
   CREEM_PRODUCT_STARTER?: string;
   CREEM_PRODUCT_PLUS?: string;
   CREEM_PRODUCT_PRO?: string;
+  ABANDONED_EMAIL_SECRET?: string;
+  ABANDONED_EMAIL_FROM?: string;
+  LEGAL_POSTAL_ADDRESS?: string;
   SITE_URL?: string;
   SESSION_SECRET?: string;
   /** Optional Cloudflare Workers AI binding */

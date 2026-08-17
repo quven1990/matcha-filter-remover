@@ -161,9 +161,9 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     }
 
     await context.env.SAMPLES_DB.prepare(
-      `UPDATE orders SET creem_checkout_id = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE orders SET creem_checkout_id = ?, creem_checkout_url = ?, updated_at = ? WHERE id = ?`,
     )
-      .bind(data.id || null, new Date().toISOString(), orderId)
+      .bind(data.id || null, data.checkout_url, new Date().toISOString(), orderId)
       .run();
 
     return json(

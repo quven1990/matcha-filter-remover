@@ -41,6 +41,39 @@ npx wrangler d1 migrations apply matcha-filter-samples --remote
 
 Includes wallet safety columns (`status`, `safety_block_count`) from `0003_wallet_safety.sql`.
 
+## Abandoned checkout reminder
+This is a conservative, one-time service reminder for users who entered an email,
+started a Creem checkout, and are still `pending` after 20-60 minutes. It is not a
+newsletter or discount campaign.
+
+Cloudflare setup:
+```bash
+npx wrangler pages secret put ABANDONED_EMAIL_SECRET --project-name matcha-filter
+npx wrangler pages secret put ABANDONED_EMAIL_FROM --project-name matcha-filter # billing@matchafilter.online
+npx wrangler pages secret put LEGAL_POSTAL_ADDRESS --project-name matcha-filter
+```
+
+Also enable Cloudflare Email Sending for the sender domain and bind it as `EMAIL`
+before triggering the endpoint. If `EMAIL` or `LEGAL_POSTAL_ADDRESS` is missing,
+the endpoint refuses to send.
+
+Once `billing@matchafilter.online` is verified for Cloudflare Email Sending, add
+the binding to `wrangler.jsonc`:
+```json
+"send_email": [
+  {
+    "name": "EMAIL",
+    "allowed_sender_addresses": ["billing@matchafilter.online"]
+  }
+]
+```
+
+Trigger every 10 minutes from a private cron:
+```bash
+curl -X POST https://matchafilter.online/api/billing/abandoned-email \
+  -H "x-abandoned-email-secret: $ABANDONED_EMAIL_SECRET"
+```
+
 ## Flow
 1. `/pricing` → tap Buy (implies 18+ / Terms) → POST `/api/billing/checkout` → Creem hosted checkout
 2. Webhook grants credits to `metadata.wallet_id`
