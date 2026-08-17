@@ -1601,6 +1601,12 @@ a.engage-tip-cta {
   background: color-mix(in srgb, var(--matcha) 6%, #fff);
 }
 
+.pricing-checkout-meta.is-error {
+  border-color: #8a2f2f;
+  background: #fff6f4;
+  box-shadow: 0 0 0 3px rgba(138, 47, 47, 0.1);
+}
+
 .pricing-paused {
   padding: 1rem 1.1rem;
   border-radius: 0.9rem;
@@ -1646,6 +1652,18 @@ a.engage-tip-cta {
 .pricing-email input[aria-invalid="true"] {
   border-color: #8a2f2f;
   box-shadow: 0 0 0 3px rgba(138, 47, 47, 0.12);
+}
+
+.pricing-email-error {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(138, 47, 47, 0.35);
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #8a2f2f;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .pricing-agree-note {

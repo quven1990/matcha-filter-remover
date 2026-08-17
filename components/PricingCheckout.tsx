@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CREDIT_PACKS, PAYMENTS_ENABLED, type CreditPackId } from "@/lib/billing-packs";
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { track } from "@/lib/analytics";
@@ -15,7 +15,10 @@ export function PricingCheckout() {
   const [busyPack, setBusyPack] = useState<CreditPackId | null>(null);
   const [email, setEmail] = useState("");
   const [emailTouched, setEmailTouched] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const emailBlockRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     track("pricing_view");
@@ -35,16 +38,21 @@ export function PricingCheckout() {
 
   const buy = async (pack: CreditPackId) => {
     setError(null);
+    setEmailError(null);
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       setEmailTouched(true);
-      setError("Enter your email first so Creem can send the receipt and unlock credits.");
+      setEmailError("Email is required before checkout. Enter it above, then tap Buy again.");
+      emailBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => emailInputRef.current?.focus(), 120);
       track("billing_checkout_blocked", { pack, reason: "email_required" });
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setEmailTouched(true);
-      setError("Enter a valid email address before checkout.");
+      setEmailError("That email does not look valid. Check it, then tap Buy again.");
+      emailBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => emailInputRef.current?.focus(), 120);
       track("billing_checkout_blocked", { pack, reason: "invalid_email" });
       return;
     }
@@ -176,22 +184,36 @@ export function PricingCheckout() {
 
   return (
     <div className="pricing-checkout">
-      <div className="pricing-checkout-meta">
+      <div
+        ref={emailBlockRef}
+        className={`pricing-checkout-meta ${emailError ? "is-error" : ""}`}
+      >
         <label className="pricing-email">
           <span>Email for receipt and credits</span>
           <input
+            ref={emailInputRef}
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (emailError) setEmailError(null);
+            }}
             onBlur={() => setEmailTouched(true)}
             placeholder="you@example.com"
             autoComplete="email"
+            aria-describedby={emailError ? "pricing-email-error" : undefined}
             aria-invalid={
-              emailTouched && email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+              Boolean(emailError) ||
+              (emailTouched && email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
             }
             required
           />
         </label>
+        {emailError && (
+          <p id="pricing-email-error" className="pricing-email-error" role="alert">
+            {emailError}
+          </p>
+        )}
         <p className="pricing-trust-note">
           Secure checkout by Creem. No account required. Credits unlock on this browser after
           payment.
