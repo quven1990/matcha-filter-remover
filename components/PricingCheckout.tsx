@@ -5,6 +5,8 @@ import { CREDIT_PACKS, PAYMENTS_ENABLED, type CreditPackId } from "@/lib/billing
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { track } from "@/lib/analytics";
 
+const PAYPAL_TRIAL_URL = "https://paypal.me/gemy917/1.99USD";
+
 function buyLabel(pack: (typeof CREDIT_PACKS)[number], busy: boolean) {
   if (busy) return "Redirecting…";
   if (pack.id === "trial" || pack.id === "starter") return `Try · ${pack.priceLabel}`;
@@ -36,9 +38,7 @@ export function PricingCheckout() {
     return () => window.clearTimeout(t);
   }, []);
 
-  const buy = async (pack: CreditPackId) => {
-    setError(null);
-    setEmailError(null);
+  const validateEmailForCheckout = (pack: CreditPackId) => {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       setEmailTouched(true);
@@ -46,7 +46,7 @@ export function PricingCheckout() {
       emailBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       window.setTimeout(() => emailInputRef.current?.focus(), 120);
       track("billing_checkout_blocked", { pack, reason: "email_required" });
-      return;
+      return null;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
       setEmailTouched(true);
@@ -54,8 +54,16 @@ export function PricingCheckout() {
       emailBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       window.setTimeout(() => emailInputRef.current?.focus(), 120);
       track("billing_checkout_blocked", { pack, reason: "invalid_email" });
-      return;
+      return null;
     }
+    return cleanEmail;
+  };
+
+  const buy = async (pack: CreditPackId) => {
+    setError(null);
+    setEmailError(null);
+    const cleanEmail = validateEmailForCheckout(pack);
+    if (!cleanEmail) return;
     if (!PAYMENTS_ENABLED) {
       setError("Card checkout is temporarily paused. Free Remove/Apply still works.");
       track("billing_checkout_blocked", { pack, reason: "payments_paused" });
@@ -130,6 +138,15 @@ export function PricingCheckout() {
     }
   };
 
+  const payWithPayPal = (pack: CreditPackId) => {
+    setError(null);
+    setEmailError(null);
+    const cleanEmail = validateEmailForCheckout(pack);
+    if (!cleanEmail) return;
+    track("paypal_checkout_click", { pack });
+    window.open(PAYPAL_TRIAL_URL, "_blank", "noopener,noreferrer");
+  };
+
   const packs = (
     <div id="packs" className="pricing-grid">
       {CREDIT_PACKS.map((pack) => (
@@ -152,6 +169,20 @@ export function PricingCheckout() {
             <button type="button" className="btn-primary" disabled>
               Coming soon
             </button>
+          )}
+          {pack.id === "trial" && (
+            <div className="pricing-paypal-test">
+              <button type="button" className="btn-secondary" onClick={() => payWithPayPal(pack.id)}>
+                Trouble with card checkout? Pay with PayPal
+              </button>
+              <p>
+                Test option: credits are added manually. After paying, email{" "}
+                <a href={`mailto:billing@matchafilter.online?subject=PayPal%20Trial%20credits&body=PayPal%20receipt%3A%0AEmail%20used%20on%20matchafilter.online%3A%20${encodeURIComponent(email.trim())}`}>
+                  billing@matchafilter.online
+                </a>{" "}
+                with your PayPal receipt and the email above.
+              </p>
+            </div>
           )}
         </article>
       ))}
