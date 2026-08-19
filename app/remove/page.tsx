@@ -7,12 +7,12 @@ import { PAYMENTS_ENABLED } from "@/lib/billing-packs";
 export const metadata: Metadata = {
   title: "Free Matcha Filter Remover — Clean Filter & Video",
   description:
-    "Free matcha filter remover for photos & short videos — no signup. Clean the matcha effect on-device; optional AI Restore for hard melts (18+).",
+    "Free matcha filter remover for photos, TikTok screenshots & short videos — no signup. Clean the matcha effect on-device; optional AI Restore for hard melts (18+).",
   alternates: { canonical: "/remove" },
   openGraph: {
     title: "Free Matcha Filter Remover — Clean Filter & Video",
     description:
-      "Free matcha filter remover for photos and short videos. Clean the matcha effect on-device; optional AI for hard melts (18+).",
+      "Free matcha filter remover for photos, TikTok screenshots and short videos. Clean the matcha effect on-device; optional AI for hard melts (18+).",
     url: "https://matchafilter.online/remove",
   },
 };
@@ -157,8 +157,9 @@ export default function RemovePage() {
         <p>
           <strong>Matcha Filter Remover</strong> is a <strong>free</strong> online tool to{" "}
           <strong>clean a matcha filter</strong> (also searched as remove matcha filter, matcha
-          effect remover, or clean filter matcha). No signup. Start with the on-device remover for
-          green/olive cast and grain. If the look is a heavy liquid-metal melt, optional{" "}
+          effect remover, clean filter matcha, or TikTok matcha filter remover). No signup. Start
+          with the on-device remover for TikTok screenshots, short clips, green/olive cast, and
+          grain. If the look is a heavy liquid-metal melt, optional{" "}
           <strong>AI Restore</strong> can try a stronger still (18+). Neither path restores the
           exact original file or reveals hidden/censored content.
         </p>

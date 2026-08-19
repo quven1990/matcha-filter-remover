@@ -3,10 +3,16 @@ import Link from "next/link";
 import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
 
 export const metadata: Metadata = {
-  title: "How to Remove the Matcha Filter on TikTok (Free)",
+  title: "TikTok Matcha Filter Remover — Clean Videos & Screenshots",
   description:
-    "How to remove a matcha filter from a TikTok video or screenshot you can edit. Free online cleanup with Matcha Filter Remover, plus honest limits.",
+    "Remove the TikTok matcha filter from videos or screenshots online. Free browser cleanup, no signup, with honest limits for baked-in effects.",
   alternates: { canonical: "/guide/how-to-remove-matcha-filter-on-tiktok" },
+  openGraph: {
+    title: "TikTok Matcha Filter Remover — Clean Videos & Screenshots",
+    description:
+      "Remove the TikTok matcha filter from videos or screenshots online. Free browser cleanup, no signup, with honest limits for baked-in effects.",
+    url: "https://matchafilter.online/guide/how-to-remove-matcha-filter-on-tiktok",
+  },
 };
 
 export default function TikTokRemoveGuidePage() {
@@ -69,6 +75,10 @@ export default function TikTokRemoveGuidePage() {
       a: "No. It reduces color and texture effects only. It cannot reveal hidden, censored, blurred, or painted-over detail.",
     },
     {
+      q: "Paano tanggalin ang matcha filter sa TikTok?",
+      a: "If you searched paano tanggalin ang matcha filter sa TikTok, save a clip or screenshot you have rights to edit, open Matcha Filter Remover, upload it, run Remove effect, then download. Cleanup is best-effort for baked-in effects.",
+    },
+    {
       q: "Is Matcha Filter affiliated with TikTok?",
       a: "No. Matcha Filter is an independent browser tool and is not endorsed by or affiliated with TikTok.",
     },
@@ -94,16 +104,21 @@ export default function TikTokRemoveGuidePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJson) }}
       />
-      <p className="eyebrow">TikTok guide</p>
-      <h1>How to Remove the Matcha Filter on TikTok</h1>
+      <p className="eyebrow">TikTok matcha filter remover</p>
+      <h1>TikTok Matcha Filter Remover</h1>
 
       <div className="answer-box prose-answer">
         <h2>Short answer</h2>
         <p>
-          To remove a matcha filter from TikTok, save a clip or screenshot you have rights to
-          edit, open <Link href="/remove">Matcha Filter Remover</Link>, upload it, run the free
-          Remove effect, compare sides, and download. It can clean green cast, haze, and grain,
-          but it cannot restore the exact original TikTok file.
+          To remove the TikTok matcha filter from a video or screenshot, open{" "}
+          <Link href="/remove">Matcha Filter Remover</Link>, upload a file you have rights to
+          edit, run the free Remove effect, compare sides, and download. It can clean green cast,
+          haze, and grain, but it cannot restore the exact original TikTok file.
+        </p>
+        <p>
+          <Link href="/remove" className="btn-primary">
+            Open the free remover
+          </Link>
         </p>
       </div>
 
@@ -143,6 +158,15 @@ export default function TikTokRemoveGuidePage() {
       <p>
         No remover can reveal censored, blurred, painted-over, or missing original detail. This
         tool is for color and texture cleanup only.
+      </p>
+
+      <h2>Paano tanggalin ang matcha filter sa TikTok?</h2>
+      <p>
+        If you searched <em>paano tanggalin ang matcha filter sa TikTok</em> or{" "}
+        <em>paano alisin ang matcha filter sa TikTok</em>, use the same steps: save your own
+        TikTok clip or screenshot, open <Link href="/remove">Matcha Filter Remover</Link>, upload,
+        run Remove effect, compare, and download. It cleans the green matcha look when possible,
+        but baked-in filters cannot be perfectly reversed.
       </p>
 
       <h2>Independent tool</h2>

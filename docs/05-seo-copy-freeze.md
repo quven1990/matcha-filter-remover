@@ -114,6 +114,8 @@
 
 **Change log (2026-08-14):** GSC long-tail pass — added `/guide/how-to-remove-matcha-filter-on-tiktok` for TikTok how-to queries; refreshed `/guide/what-is-matcha-filter` title/meta/short answer for viral matcha filter / trend queries; added internal links from `/remove` and general how-to guide.
 
+**Change log (2026-08-20):** GSC decline pass — `/guide/how-to-remove-matcha-filter-on-tiktok` repositioned from pure how-to to a TikTok tool-entry page after GSC showed high impressions / low CTR on TikTok and PH long-tail queries. Added Tagalog query FAQ (`paano tanggalin...`) and earlier CTA to `/remove`; `/remove` meta/quick answer now explicitly includes TikTok screenshots and short videos.
+
 **HowTo steps (schema):**
 1. Open Matcha Filter Remover  
 2. Upload your photo or short video  
