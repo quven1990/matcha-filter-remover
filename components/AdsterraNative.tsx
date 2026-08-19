@@ -17,11 +17,16 @@ function hasAdCreative(root: HTMLElement | null) {
 }
 
 export function AdsterraNative({ className = "" }: AdsterraNativeProps) {
+  // Global kill-switch: user requested to disable all Adsterra placements.
+  // Keep it unconditional so we never load third-party scripts.
+  const ADSTERRA_NATIVE_DISABLED = true;
+
   const rootRef = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(true);
   const [filled, setFilled] = useState(false);
 
   useEffect(() => {
+    if (ADSTERRA_NATIVE_DISABLED) return;
     if (process.env.NEXT_PUBLIC_ADSTERRA_NATIVE === "0") return;
 
     const prev = document.querySelector<HTMLScriptElement>(
@@ -63,6 +68,7 @@ export function AdsterraNative({ className = "" }: AdsterraNativeProps) {
     };
   }, []);
 
+  if (ADSTERRA_NATIVE_DISABLED) return null;
   if (process.env.NEXT_PUBLIC_ADSTERRA_NATIVE === "0") return null;
   if (!visible) return null;
 

@@ -60,6 +60,10 @@ function hasAdCreative(root: HTMLElement | null) {
 
 /** Adsterra iframe banners — content areas only, never tool dock/preview. */
 export function AdsterraBanner({ size = "300x250", className = "" }: AdsterraBannerProps) {
+  // Global kill-switch: user requested to disable all Adsterra placements.
+  // Keep this unconditional so we never load third-party scripts.
+  const ADSTERRA_BANNER_DISABLED = true;
+
   const hostRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLElement>(null);
   const reactId = useId().replace(/:/g, "");
@@ -69,6 +73,7 @@ export function AdsterraBanner({ size = "300x250", className = "" }: AdsterraBan
   const [filled, setFilled] = useState(false);
 
   useEffect(() => {
+    if (ADSTERRA_BANNER_DISABLED) return;
     if (envOff) return;
     const host = hostRef.current;
     if (!host) return;
@@ -127,7 +132,7 @@ export function AdsterraBanner({ size = "300x250", className = "" }: AdsterraBan
     };
   }, [config.height, config.key, config.width, envOff, reactId, size]);
 
-  if (envOff || !visible) return null;
+  if (ADSTERRA_BANNER_DISABLED || envOff || !visible) return null;
 
   return (
     <aside
