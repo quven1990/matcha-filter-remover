@@ -5,14 +5,14 @@ import { MediaTool } from "@/components/MediaTool";
 import { PAYMENTS_ENABLED } from "@/lib/billing-packs";
 
 export const metadata: Metadata = {
-  title: "Free Matcha Filter Remover — Clean Filter & Video",
+  title: "Free Matcha Filter Remover — Remove Filter From Video",
   description:
-    "Free matcha filter remover for photos, TikTok screenshots & short videos — no signup. Clean the matcha effect on-device; optional AI Restore for hard melts (18+).",
+    "Remove matcha filter from photos, TikTok screenshots, and short videos online. Free browser cleanup, no signup; optional AI Restore for hard melts (18+).",
   alternates: { canonical: "/remove" },
   openGraph: {
-    title: "Free Matcha Filter Remover — Clean Filter & Video",
+    title: "Free Matcha Filter Remover — Remove Filter From Video",
     description:
-      "Free matcha filter remover for photos, TikTok screenshots and short videos. Clean the matcha effect on-device; optional AI for hard melts (18+).",
+      "Remove matcha filter from photos, TikTok screenshots, and short videos online. Free browser cleanup, no signup; optional AI for hard melts (18+).",
     url: "https://matchafilter.online/remove",
   },
 };
@@ -24,7 +24,7 @@ const aiCheckoutNote = PAYMENTS_ENABLED
 const faq = [
   {
     q: "What is a matcha filter remover?",
-    a: "A free online tool to remove or clean a viral matcha filter from a saved photo, screenshot, or short video. The default remover reduces green/olive tint, grain, and harsh contrast in your browser. Optional AI Restore is for heavy liquid-metal melts the free tool cannot undo.",
+    a: "A free online tool to remove or clean a viral matcha filter from a saved photo, TikTok screenshot, or short video. The default remover reduces green/olive tint, grain, and harsh contrast in your browser. Optional AI Restore is for heavy liquid-metal melts the free tool cannot undo.",
   },
   {
     q: "Is matcha filter removal the same as a matcha effect remover?",
@@ -33,6 +33,10 @@ const faq = [
   {
     q: "Is the matcha filter remover free?",
     a: "Yes. The default on-device remover is free — no signup, no card. Optional AI Restore uses credits when checkout is open, and only for hard melts.",
+  },
+  {
+    q: "How do I remove matcha filter online?",
+    a: "Open this page, upload a photo, screenshot, or short clip you have rights to edit, run Remove effect, compare the result, then download. This is the main free online matcha filter remover path.",
   },
   {
     q: "When should I use free Remove vs AI Restore?",
@@ -49,7 +53,7 @@ const faq = [
   },
   {
     q: "How do I remove a matcha filter from a video?",
-    a: "Upload a short MP4, WebM, or MOV, run free Remove effect on-device, scrub frames to check, then download. That covers searches like matcha filter remover video. AI Restore (when open) only fixes the current frame as a still — not the whole clip. See the video guide below for details.",
+    a: "Upload a short MP4, WebM, or MOV, run free Remove effect on-device, scrub frames to check, then download. That covers searches like matcha filter remover video, remove matcha filter video, and remove filter from video. AI Restore (when open) only fixes the current frame as a still — not the whole clip. See the video guide below for details.",
   },
   {
     q: "How do I remove a matcha filter on TikTok?",
@@ -88,7 +92,7 @@ export default function RemovePage() {
         operatingSystem: "Web Browser",
         url: "https://matchafilter.online/remove",
         description:
-          "Free matcha filter remover for photos and short videos, plus optional AI Restore for heavy melts. No signup for the free tool.",
+          "Free matcha filter remover for photos, TikTok screenshots, and short videos, plus optional AI Restore for heavy melts. No signup for the free tool.",
         offers: {
           "@type": "Offer",
           price: "0",
@@ -108,7 +112,7 @@ export default function RemovePage() {
         "@type": "HowTo",
         name: "How to use Matcha Filter Remover",
         description:
-          "Free online matcha filter removal for photos and short videos, with optional AI Restore for heavy liquid-metal melts.",
+          "Free online matcha filter removal for photos, TikTok screenshots, and short videos, with optional AI Restore for heavy liquid-metal melts.",
         step: [
           {
             "@type": "HowToStep",
@@ -149,19 +153,34 @@ export default function RemovePage() {
       <MediaTool
         mode="remove"
         title="Matcha Filter Remover"
-        subtitle="Free on-device cleanup for green cast and grain. Optional AI Restore for heavy liquid-metal melts (18+). Works on TikTok screenshots and short clips."
+        subtitle="Remove matcha filter from photos, TikTok screenshots, and short videos. Free browser cleanup, no signup; optional AI Restore for heavy liquid-metal melts (18+)."
       />
 
       <section className="section answer-box">
         <h2>Quick answer</h2>
         <p>
-          <strong>Matcha Filter Remover</strong> is a <strong>free</strong> online tool to{" "}
-          <strong>clean a matcha filter</strong> (also searched as remove matcha filter, matcha
-          effect remover, clean filter matcha, or TikTok matcha filter remover). No signup. Start
-          with the on-device remover for TikTok screenshots, short clips, green/olive cast, and
-          grain. If the look is a heavy liquid-metal melt, optional{" "}
+          <strong>Matcha Filter Remover</strong> is the free online tool to{" "}
+          <strong>remove matcha filter</strong> effects from photos, TikTok screenshots, and short
+          videos. It also covers searches like <em>matcha filter remover free</em>,{" "}
+          <em>clean filter matcha</em>, <em>matcha effect remover</em>, and{" "}
+          <em>TikTok matcha filter remover</em>.
+        </p>
+        <p>
+          Upload a file you have rights to edit, run <strong>Remove effect</strong>, compare With
+          filter vs Filter removed, then download. No signup, no card for the free on-device
+          cleanup. If the look is a heavy liquid-metal melt, optional{" "}
           <strong>AI Restore</strong> can try a stronger still (18+). Neither path restores the
           exact original file or reveals hidden/censored content.
+        </p>
+      </section>
+
+      <section className="section">
+        <h2>Remove matcha filter online</h2>
+        <p>
+          This is the main browser tool for <em>matcha filter remover</em>,{" "}
+          <em>remove matcha filter</em>, and <em>matcha filter remover free</em> searches. Start
+          here when the saved image or clip has a green matcha cast, added grain, haze, or harsh
+          contrast. The free cleanup runs locally in your browser.
         </p>
       </section>
 
@@ -179,9 +198,9 @@ export default function RemovePage() {
         <p>
           Upload a photo or short clip, run <strong>Remove effect</strong>, scrub or drag the
           compare split, then download. Free Remove processes the video on-device — that is the path
-          for <em>matcha filter remover video</em> / <em>remove matcha filter video</em>. Optional
-          AI Restore only enhances the current frame as a still when the melt is too heavy for
-          sliders. For video-specific steps, read{" "}
+          for <em>matcha filter remover video</em>, <em>remove matcha filter video</em>, and{" "}
+          <em>remove filter from video</em>. Optional AI Restore only enhances the current frame as
+          a still when the melt is too heavy for sliders. For video-specific steps, read{" "}
           <Link href="/guide/remove-matcha-filter-from-video">
             how to remove a matcha filter from video
           </Link>

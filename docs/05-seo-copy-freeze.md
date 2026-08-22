@@ -44,23 +44,24 @@
 
 ## `/remove` (PRIMARY MONEY PAGE)
 
-**title:** Free Matcha Filter Remover — Clean Filter & Video  
-**meta:** Free matcha filter remover for photos & short videos — no signup. Clean the matcha effect on-device; optional AI Restore for hard melts (18+).
+**title:** Free Matcha Filter Remover — Remove Filter From Video  
+**meta:** Remove matcha filter from photos, TikTok screenshots, and short videos online. Free browser cleanup, no signup; optional AI Restore for hard melts (18+).
 
 **H1:** Matcha Filter Remover  
-**sub:** Free on-device cleanup for green cast and grain. Optional AI Restore for heavy liquid-metal melts (18+). Works on TikTok screenshots and short clips.
+**sub:** Remove matcha filter from photos, TikTok screenshots, and short videos. Free browser cleanup, no signup; optional AI Restore for heavy liquid-metal melts (18+).
 
 **CTA:** Upload & Remove  
 **Secondary:** Compare before / after
 
 **H2:**
-1. Clean a matcha filter (free, no signup)
-2. Remove matcha filter from a photo or short video
-3. How the remover works
-4. Free Remove vs AI Restore
-5. What it can and cannot fix
-6. Free, private, no account
-7. FAQ
+1. Remove matcha filter online
+2. Clean a matcha filter (free, no signup)
+3. Remove matcha filter from a photo or short video
+4. How the remover works
+5. Free Remove vs AI Restore
+6. What it can and cannot fix
+7. Free, private, no account
+8. FAQ
 
 **Tool microcopy:**
 - Drop zone：`Drop a photo or short video` / `JPG, PNG, WebP, MP4 · stays on your device`
@@ -78,34 +79,37 @@
 3. **Is the matcha filter remover free?**  
    Yes. Default on-device remover is free — no signup, no card. AI Restore uses credits when checkout is open.
 
-4. **When should I use free Remove vs AI Restore?**  
+4. **How do I remove matcha filter online?**  
+   Open this page, upload a photo, screenshot, or short clip you have rights to edit, run Remove effect, compare the result, then download.
+
+5. **When should I use free Remove vs AI Restore?**  
    Free = color cast / grain. AI Restore = heavy melt the sliders cannot undo. 18+, current frame only on video. Checkout may be paused.
 
-5. **Does AI Restore work on video?**  
+6. **Does AI Restore work on video?**  
    Free Remove can do short video locally. AI Restore = current frame still only.
 
-6. **How do I clean a matcha filter?**  
+7. **How do I clean a matcha filter?**  
    Upload and run Remove effect first (clean / clear / clean filter matcha). AI Restore only if still melted. Will not uncover censored detail.
 
-7. **How do I remove a matcha filter from a video?**  
+8. **How do I remove a matcha filter from a video?**  
    Upload short MP4/WebM/MOV → free Remove on-device → download. AI Restore = current frame still only.
 
-8. **How do I remove a matcha filter on TikTok?**  
+9. **How do I remove a matcha filter on TikTok?**  
    Export/screenshot what you have rights to edit → upload here → Remove effect. Best-effort; not original unfiltered file.
 
-9. **Can I remove a matcha filter from a TikTok screenshot?**  
+10. **Can I remove a matcha filter from a TikTok screenshot?**  
    Yes. Upload a screenshot or photo and run Remove effect. Best-effort, not a perfect original.
 
-10. **Can this restore the exact original TikTok file?**  
+11. **Can this restore the exact original TikTok file?**  
     No. Free Remove is color/texture cleanup. AI Restore is best-effort reconstruction, not original pixels.
 
-11. **Can it reveal hidden or censored content behind the filter?**  
+12. **Can it reveal hidden or censored content behind the filter?**  
     No. Neither free remover nor AI Restore uncovers masked, painted-over, or NSFW-obscured detail. Do not bring NSFW/illegal media into the tools. AI is 18+ and blocks prohibited inputs.
 
-12. **Do you upload my media?**  
+13. **Do you upload my media?**  
     No for default on-device remover. AI Restore sends the selected still to our edge + AI provider for that job only.
 
-13. **Is Matcha Filter affiliated with TikTok?**  
+14. **Is Matcha Filter affiliated with TikTok?**  
     No. Independent tool. Not endorsed by TikTok.
 
 **Change log (2026-08-12):** GSC cluster + snippet pass; then product honesty — Free Remove vs AI Restore (18+, frame-only, checkout pause note). Compliance: still no reveal/uncensor claims.
@@ -115,6 +119,8 @@
 **Change log (2026-08-14):** GSC long-tail pass — added `/guide/how-to-remove-matcha-filter-on-tiktok` for TikTok how-to queries; refreshed `/guide/what-is-matcha-filter` title/meta/short answer for viral matcha filter / trend queries; added internal links from `/remove` and general how-to guide.
 
 **Change log (2026-08-20):** GSC decline pass — `/guide/how-to-remove-matcha-filter-on-tiktok` repositioned from pure how-to to a TikTok tool-entry page after GSC showed high impressions / low CTR on TikTok and PH long-tail queries. Added Tagalog query FAQ (`paano tanggalin...`) and earlier CTA to `/remove`; `/remove` meta/quick answer now explicitly includes TikTok screenshots and short videos.
+
+**Change log (2026-08-23):** P0 traffic stabilization pass — `/remove` title/meta/subtitle/Quick answer now prioritize exact high-intent terms (`matcha filter remover`, `remove matcha filter`, `matcha filter remover free`, video/TikTok variants). Added `Remove matcha filter online` section and exact-match FAQ without changing tool behavior or compliance boundaries.
 
 **HowTo steps (schema):**
 1. Open Matcha Filter Remover  
