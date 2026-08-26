@@ -24,7 +24,7 @@ export const metadata: Metadata = {
         url: "https://matchafilter.online/demo/tagalog-tiktok-matcha-filter-guide.webp",
         width: 1672,
         height: 941,
-        alt: "Tagalog guide visual showing matcha filter cleanup before and after",
+        alt: "Portrait before and after matcha filter cleanup",
       },
     ],
   },
@@ -174,14 +174,14 @@ export default function TagalogTikTokMatchaGuidePage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/demo/tagalog-tiktok-matcha-filter-guide.webp"
-          alt="Tagalog visual guide showing matcha filter cleanup before and after"
+          alt="Portrait before and after matcha filter cleanup"
           width={1672}
           height={941}
           decoding="async"
         />
         <figcaption>
-          Example visual: free cleanup reduces green cast, haze, grain, and harsh contrast. It is
-          not a perfect original restore.
+          Example portrait: free cleanup reduces green cast, haze, grain, and harsh contrast. It
+          is not a perfect original restore.
         </figcaption>
       </figure>
 
