@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ExampleCompare } from "@/components/ExampleCompare";
 import { GuideLeaderboardAd } from "@/components/GptAd";
 
 export const metadata: Metadata = {
@@ -22,10 +21,10 @@ export const metadata: Metadata = {
     url: "https://matchafilter.online/guide/paano-tanggalin-ang-matcha-filter-sa-tiktok",
     images: [
       {
-        url: "https://matchafilter.online/demo/filter-removed.webp",
-        width: 960,
-        height: 720,
-        alt: "Example of matcha filter cleanup before and after",
+        url: "https://matchafilter.online/demo/tagalog-tiktok-matcha-filter-guide.webp",
+        width: 1672,
+        height: 941,
+        alt: "Tagalog guide visual showing matcha filter cleanup before and after",
       },
     ],
   },
@@ -45,7 +44,7 @@ export default function TagalogTikTokMatchaGuidePage() {
       name: "Matcha Filter Remover",
       url: "https://matchafilter.online/remove",
     },
-    image: "https://matchafilter.online/demo/filter-removed.webp",
+    image: "https://matchafilter.online/demo/tagalog-tiktok-matcha-filter-guide.webp",
     step: [
       {
         "@type": "HowToStep",
@@ -171,14 +170,20 @@ export default function TagalogTikTokMatchaGuidePage() {
         </p>
       </div>
 
-      <ExampleCompare
-        beforeSrc="/demo/with-filter.webp"
-        afterSrc="/demo/filter-removed.webp"
-        beforeLabel="Before · matcha cast"
-        afterLabel="After · free cleanup"
-        hint="Visual example · drag to compare"
-        note="Example only: free cleanup reduces green cast, haze, grain, and harsh contrast. It is not a perfect original restore."
-      />
+      <figure className="guide-visual">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/demo/tagalog-tiktok-matcha-filter-guide.webp"
+          alt="Tagalog visual guide showing matcha filter cleanup before and after"
+          width={1672}
+          height={941}
+          decoding="async"
+        />
+        <figcaption>
+          Example visual: free cleanup reduces green cast, haze, grain, and harsh contrast. It is
+          not a perfect original restore.
+        </figcaption>
+      </figure>
 
       <h2>Quick steps</h2>
       <h3>1. I-save ang video or screenshot</h3>
