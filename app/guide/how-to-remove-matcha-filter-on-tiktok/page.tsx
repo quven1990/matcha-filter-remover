@@ -6,7 +6,14 @@ export const metadata: Metadata = {
   title: "TikTok Matcha Filter Remover — Clean Videos & Screenshots",
   description:
     "Remove the TikTok matcha filter from videos or screenshots online. Free browser cleanup, no signup, with honest limits for baked-in effects.",
-  alternates: { canonical: "/guide/how-to-remove-matcha-filter-on-tiktok" },
+  alternates: {
+    canonical: "/guide/how-to-remove-matcha-filter-on-tiktok",
+    languages: {
+      en: "/guide/how-to-remove-matcha-filter-on-tiktok",
+      tl: "/guide/paano-tanggalin-ang-matcha-filter-sa-tiktok",
+      "x-default": "/guide/how-to-remove-matcha-filter-on-tiktok",
+    },
+  },
   openGraph: {
     title: "TikTok Matcha Filter Remover — Clean Videos & Screenshots",
     description:
@@ -170,7 +177,12 @@ export default function TikTokRemoveGuidePage() {
         <em>paano alisin ang matcha filter sa TikTok</em>, use the same steps: save your own
         TikTok clip or screenshot, open <Link href="/remove">Matcha Filter Remover</Link>, upload,
         run Remove effect, compare, and download. It cleans the green matcha look when possible,
-        but baked-in filters cannot be perfectly reversed.
+        but baked-in filters cannot be perfectly reversed. For a more direct Tagalog walkthrough,
+        open{" "}
+        <Link href="/guide/paano-tanggalin-ang-matcha-filter-sa-tiktok">
+          paano tanggalin ang matcha filter sa TikTok
+        </Link>
+        .
       </p>
 
       <h2>Independent tool</h2>

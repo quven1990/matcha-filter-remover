@@ -8,6 +8,7 @@ type Props = {
   beforeLabel?: string;
   afterLabel?: string;
   hint?: string;
+  note?: string;
   className?: string;
 };
 
@@ -17,6 +18,7 @@ export function ExampleCompare({
   beforeLabel = "Free · still soft",
   afterLabel = "AI Restore",
   hint = "Example · drag · not your file",
+  note = "Same hard melt: free stops left · AI tries the remaining melt (1 credit). Won’t uncover censored detail.",
   className = "",
 }: Props) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -104,10 +106,7 @@ export function ExampleCompare({
         <span className="example-compare-tag example-compare-tag-before">{beforeLabel}</span>
         <span className="example-compare-tag example-compare-tag-after">{afterLabel}</span>
       </div>
-      <p className="example-compare-note">
-        Same hard melt: free stops left · AI tries the remaining melt (1 credit). Won’t uncover
-        censored detail.
-      </p>
+      <p className="example-compare-note">{note}</p>
     </div>
   );
 }
