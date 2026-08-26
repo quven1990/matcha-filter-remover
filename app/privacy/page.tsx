@@ -78,12 +78,16 @@ export default function PrivacyPage() {
         . These services do not receive the media you process in the tools.
       </p>
       <h2>Advertising</h2>
-      <h3>Adsterra</h3>
+      <h3>Google advertising</h3>
       <p>
-        We may show third-party ads (Adsterra) on content areas of the site. Ad networks may
-        set cookies or use device identifiers to measure and personalize ads. Ads are kept
-        outside the upload/preview/export controls so they do not block tool actions. See also
-        the Cookie Policy.
+        We may show third-party ads served through Google (Google Ad Manager / AdSense) on
+        content areas of the site. Google and its partners may set cookies or use device
+        identifiers to measure and personalize ads. Ads are kept outside the upload, preview,
+        and export controls so they do not block tool actions. See also the Cookie Policy and{" "}
+        <a href="https://policies.google.com/technologies/ads" rel="noopener noreferrer">
+          How Google uses information from sites that use our services
+        </a>
+        .
       </p>
       <h2>Contact</h2>
       <h3>Privacy requests</h3>

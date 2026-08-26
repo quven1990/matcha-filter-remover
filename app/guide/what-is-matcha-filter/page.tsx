@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
+import { GuideLeaderboardAd } from "@/components/GptAd";
 
 export const metadata: Metadata = {
   title: "What Is the Viral Matcha Filter? TikTok Trend Explained",
@@ -106,7 +106,7 @@ export default function WhatIsPage() {
         detail.
       </p>
 
-      <AdsterraLeaderboard />
+      <GuideLeaderboardAd />
 
       <p style={{ marginTop: "2rem" }}>
         <Link href="/apply" className="btn-secondary" style={{ marginRight: "0.75rem" }}>

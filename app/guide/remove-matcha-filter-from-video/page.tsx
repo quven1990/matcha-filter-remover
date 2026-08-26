@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
+import { GuideLeaderboardAd } from "@/components/GptAd";
 
 export const metadata: Metadata = {
   title: "Remove Matcha Filter From Video (Free)",
@@ -109,6 +109,14 @@ export default function RemoveMatchaFilterFromVideoPage() {
           run the free Remove effect, compare frames, and download. The free tool cleans green
           cast, haze, grain, and contrast in the browser.
         </p>
+        <p className="cta-row">
+          <Link href="/remove" className="btn-primary">
+            Open the video remover
+          </Link>
+          <Link href="/pricing#packs" className="btn-secondary">
+            See AI Restore credits
+          </Link>
+        </p>
       </div>
 
       <h2>Step-by-step</h2>
@@ -143,7 +151,8 @@ export default function RemoveMatchaFilterFromVideoPage() {
       <p>
         Optional AI Restore is for a still frame that looks melted or embossed after free
         cleanup. It does not process an entire video, and it cannot uncover hidden or censored
-        content.
+        content. If one frame still needs a stronger pass, open the tool first, then use{" "}
+        <Link href="/pricing#packs">AI Restore credits</Link> for that still frame.
       </p>
 
       <h2>Related TikTok searches</h2>
@@ -153,14 +162,20 @@ export default function RemoveMatchaFilterFromVideoPage() {
           how to remove the matcha filter on TikTok
         </Link>
         . For trend context, read the{" "}
-        <Link href="/guide/viral-matcha-filter-trend">viral matcha filter trend guide</Link>.
+        <Link href="/guide/viral-matcha-filter-trend">viral matcha filter trend guide</Link>. For
+        the main upload path, use the{" "}
+        <Link href="/remove">free matcha filter remover</Link>, then compare{" "}
+        <Link href="/pricing#packs">AI Restore credit packs</Link> only if the free pass is not enough.
       </p>
 
-      <AdsterraLeaderboard />
+      <GuideLeaderboardAd />
 
-      <p style={{ marginTop: "2rem" }}>
+      <p className="cta-row" style={{ marginTop: "2rem" }}>
         <Link href="/remove" className="btn-primary">
           Open Video Remover
+        </Link>
+        <Link href="/pricing#packs" className="btn-secondary">
+          Try AI Restore
         </Link>
       </p>
     </article>

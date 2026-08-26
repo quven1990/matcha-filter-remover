@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdsterraBanner } from "@/components/AdsterraBanner";
+import { ApplyContentAd } from "@/components/GptAd";
 import { MediaTool } from "@/components/MediaTool";
 
 export const metadata: Metadata = {
@@ -117,7 +117,7 @@ export default function ApplyPage() {
         ))}
       </section>
 
-      <AdsterraBanner size="300x250" />
+      <ApplyContentAd />
     </>
   );
 }

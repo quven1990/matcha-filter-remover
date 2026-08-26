@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
+import { GuideLeaderboardAd } from "@/components/GptAd";
 
 export const metadata: Metadata = {
   title: "How to Clean or Remove a Matcha Filter (Free)",
@@ -114,7 +114,7 @@ export default function HowToRemovePage() {
         <Link href="/guide/what-is-matcha-filter">what the matcha filter is</Link>.
       </p>
 
-      <AdsterraLeaderboard />
+      <GuideLeaderboardAd />
 
       <p style={{ marginTop: "2rem" }}>
         <Link href="/remove" className="btn-primary">

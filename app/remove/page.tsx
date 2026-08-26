@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdsterraBanner } from "@/components/AdsterraBanner";
+import { RemoveContentAd } from "@/components/GptAd";
 import { MediaTool } from "@/components/MediaTool";
 import { PAYMENTS_ENABLED } from "@/lib/billing-packs";
 
@@ -326,7 +326,7 @@ export default function RemovePage() {
         ))}
       </section>
 
-      <AdsterraBanner size="300x250" />
+      <RemoveContentAd />
     </>
   );
 }

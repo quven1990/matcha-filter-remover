@@ -2088,6 +2088,41 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
             </div>
           )}
 
+          {ready && isRemove && !aiPass && (
+            <div className="ai-inline-prompt" role="status">
+              <div className="ai-inline-prompt-copy">
+                <span className="ai-inline-prompt-kicker">Free cleanup is ready</span>
+                <strong>Need stronger cleanup?</strong>
+                <span>
+                  Try AI Restore on this frame for hard matcha melts — trial credits start at{" "}
+                  {ENTRY_PRICE}.
+                </span>
+              </div>
+              {PAYMENTS_ENABLED ? (
+                <Link
+                  href="/pricing#packs"
+                  className="btn-primary ai-inline-prompt-cta"
+                  onClick={() =>
+                    trackTool("ai_pricing_click", {
+                      from: "preview_inline_prompt",
+                      media_type: kind || undefined,
+                    })
+                  }
+                >
+                  Try AI Restore
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-primary ai-inline-prompt-cta"
+                  onClick={() => scrollToAi("preview_inline_prompt")}
+                >
+                  Try AI Restore
+                </button>
+              )}
+            </div>
+          )}
+
           {ready && (
             <p className="compare-hint compare-hint-desktop">
               <strong>How to compare:</strong> left = {isRemove ? "with filter" : "original"}, right ={" "}

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdsterraLeaderboard } from "@/components/AdsterraBanner";
+import { GuideLeaderboardAd } from "@/components/GptAd";
 
 export const metadata: Metadata = {
   title: "TikTok Matcha Filter Remover — Clean Videos & Screenshots",
@@ -115,9 +115,12 @@ export default function TikTokRemoveGuidePage() {
           edit, run the free Remove effect, compare sides, and download. It can clean green cast,
           haze, and grain, but it cannot restore the exact original TikTok file.
         </p>
-        <p>
+        <p className="cta-row">
           <Link href="/remove" className="btn-primary">
             Open the free remover
+          </Link>
+          <Link href="/pricing#packs" className="btn-secondary">
+            See AI Restore credits
           </Link>
         </p>
       </div>
@@ -152,7 +155,8 @@ export default function TikTokRemoveGuidePage() {
       <h3>Hard cases</h3>
       <p>
         Heavy liquid-metal melts may need optional AI Restore on a still frame. AI Restore is
-        best-effort, 18+, and uses credits.
+        best-effort, 18+, and uses credits. If the free TikTok cleanup still looks melted, check{" "}
+        <Link href="/pricing#packs">AI Restore trial credits</Link> after you test the free remover.
       </p>
       <h3>Not possible</h3>
       <p>
@@ -177,10 +181,11 @@ export default function TikTokRemoveGuidePage() {
         <Link href="/guide/how-to-remove-matcha-filter">
           how to clean or remove a matcha filter
         </Link>
-        .
+        . If you need one stronger still-frame cleanup after the free pass, compare the{" "}
+        <Link href="/pricing#packs">AI Restore credit packs</Link>.
       </p>
 
-      <AdsterraLeaderboard />
+      <GuideLeaderboardAd />
 
       <h2>FAQ</h2>
       {faq.map((item) => (
@@ -192,9 +197,12 @@ export default function TikTokRemoveGuidePage() {
         </details>
       ))}
 
-      <p style={{ marginTop: "2rem" }}>
+      <p className="cta-row" style={{ marginTop: "2rem" }}>
         <Link href="/remove" className="btn-primary">
           Open Matcha Filter Remover
+        </Link>
+        <Link href="/pricing#packs" className="btn-secondary">
+          Try AI Restore
         </Link>
       </p>
     </article>

@@ -27,9 +27,9 @@ export default function CookiePage() {
       </p>
       <h3>Advertising</h3>
       <p>
-        Third-party ads (Adsterra) may set advertising cookies or similar identifiers. You can
-        block them via browser settings or extensions. Ads appear in content sections, not
-        inside the tool preview or save controls.
+        Third-party ads served through Google (Google Ad Manager / AdSense) may set advertising
+        cookies or similar identifiers. You can block them via browser settings or extensions.
+        Ads appear in content sections, not inside the tool preview or save controls.
       </p>
 
       <h2>Your choices</h2>
