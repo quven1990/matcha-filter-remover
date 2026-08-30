@@ -45,6 +45,7 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
       wallet_id?: string;
       email?: string;
       accepts_policy?: boolean | string | number;
+      checkout_context?: unknown;
     };
 
     const pack = body.pack as PackId;
@@ -94,13 +95,39 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     const credits = PACK_CREDITS[pack];
     const successUrl = `${siteOrigin(context.env, context.request)}/billing/success`;
     const apiBase = creemApiBase(context.env);
+    const checkoutContext = normalizeCheckoutContext(body.checkout_context);
+    const checkoutCountry = firstHeader(context.request, [
+      "cf-ipcountry",
+      "x-vercel-ip-country",
+      "x-country-code",
+    ]);
+    const checkoutUserAgent = simplifyUserAgent(context.request.headers.get("user-agent"));
 
     await context.env.SAMPLES_DB.prepare(
       `INSERT INTO orders
-        (id, wallet_id, pack, credits, product_id, status, creem_checkout_id, creem_order_id, email, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', NULL, NULL, ?, ?, ?)`,
+        (
+          id, wallet_id, pack, credits, product_id, status, creem_checkout_id, creem_order_id,
+          email, created_at, updated_at, checkout_context, checkout_country, checkout_source,
+          checkout_entry_page, checkout_referrer, checkout_user_agent
+        )
+       VALUES (?, ?, ?, ?, ?, 'pending', NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-      .bind(orderId, walletId, pack, credits, productId, email || null, now, now)
+      .bind(
+        orderId,
+        walletId,
+        pack,
+        credits,
+        productId,
+        email || null,
+        now,
+        now,
+        checkoutContext.json,
+        checkoutCountry,
+        checkoutContext.source,
+        checkoutContext.entryPage,
+        checkoutContext.referrer,
+        checkoutUserAgent,
+      )
       .run();
 
     const payload: Record<string, unknown> = {
@@ -112,6 +139,10 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
         pack,
         credits: String(credits),
         order_id: orderId,
+        source: checkoutContext.source || "",
+        entry_page: checkoutContext.entryPage || "",
+        pricing_from: checkoutContext.pricingFrom || "",
+        country: checkoutCountry || "",
       },
     };
     if (email) payload.customer = { email };
@@ -182,3 +213,78 @@ export const onRequestPost: PagesFunction<BillingEnv> = async (context) => {
     return json({ ok: false, error: "checkout_error" }, 500, headers);
   }
 };
+
+type NormalizedCheckoutContext = {
+  json: string | null;
+  source: string | null;
+  entryPage: string | null;
+  referrer: string | null;
+  pricingFrom: string | null;
+};
+
+function normalizeCheckoutContext(value: unknown): NormalizedCheckoutContext {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { json: null, source: null, entryPage: null, referrer: null, pricingFrom: null };
+  }
+
+  const input = value as Record<string, unknown>;
+  const allowedKeys = [
+    "entry_path",
+    "entry_referrer",
+    "first_seen_at",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "utm_term",
+    "utm_content",
+    "page_path",
+    "referrer",
+    "pricing_from",
+    "source",
+    "language",
+    "timezone",
+    "device_hint",
+    "viewport_bucket",
+    "screen_bucket",
+  ];
+  const out: Record<string, string> = {};
+  for (const key of allowedKeys) {
+    const raw = input[key];
+    if (typeof raw !== "string") continue;
+    const clean = raw.trim();
+    if (!clean) continue;
+    out[key] = clean.slice(0, 220);
+  }
+
+  return {
+    json: Object.keys(out).length ? JSON.stringify(out).slice(0, 1800) : null,
+    source: out.source || out.utm_source || null,
+    entryPage: out.entry_path || out.page_path || null,
+    referrer: out.referrer || out.entry_referrer || null,
+    pricingFrom: out.pricing_from || null,
+  };
+}
+
+function firstHeader(request: Request, names: string[]): string | null {
+  for (const name of names) {
+    const value = request.headers.get(name)?.trim();
+    if (value) return value.slice(0, 32);
+  }
+  return null;
+}
+
+function simplifyUserAgent(value: string | null): string | null {
+  if (!value) return null;
+  const ua = value.toLowerCase();
+  const device = /mobile|iphone|android/.test(ua) ? "mobile" : /ipad|tablet/.test(ua) ? "tablet" : "desktop";
+  const browser = ua.includes("edg/")
+    ? "edge"
+    : ua.includes("chrome/")
+      ? "chrome"
+      : ua.includes("safari/")
+        ? "safari"
+        : ua.includes("firefox/")
+          ? "firefox"
+          : "other";
+  return `${device}:${browser}`;
+}

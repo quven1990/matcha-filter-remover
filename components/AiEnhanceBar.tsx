@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AI_IMAGE_CREDIT_COST, CREDIT_PACKS, PAYMENTS_ENABLED } from "@/lib/billing-packs";
+import { rememberPricingIntent } from "@/lib/checkout-context";
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { creditBalanceBucket, elapsedBucket, track } from "@/lib/analytics";
 
@@ -333,12 +334,13 @@ export function AiEnhanceBar({
             id="ai-buy-credits"
             href="/pricing#packs"
             className="btn-primary"
-            onClick={() =>
+            onClick={() => {
+              rememberPricingIntent("ai_bar_primary");
               track("ai_pricing_click", {
                 from: "ai_bar_primary",
                 balance_bucket: creditBalanceBucket(balance),
-              })
-            }
+              });
+            }}
           >
             Restore this frame · from {ENTRY_PRICE}
           </Link>
@@ -369,12 +371,13 @@ export function AiEnhanceBar({
             id="ai-buy-credits"
             href="/pricing#packs"
             className="btn-ghost"
-            onClick={() =>
+            onClick={() => {
+              rememberPricingIntent("ai_bar");
               track("ai_pricing_click", {
                 from: "ai_bar",
                 balance_bucket: creditBalanceBucket(balance),
-              })
-            }
+              });
+            }}
             aria-disabled={busy || undefined}
           >
             Restore another frame

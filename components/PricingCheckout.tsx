@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CREDIT_PACKS, PAYMENTS_ENABLED, type CreditPackId } from "@/lib/billing-packs";
+import { checkoutContextAnalyticsParams, getCheckoutContext } from "@/lib/checkout-context";
 import { getOrCreateWalletId } from "@/lib/wallet";
 import { track } from "@/lib/analytics";
 
@@ -23,7 +24,8 @@ export function PricingCheckout() {
   const emailBlockRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    track("pricing_view");
+    const context = getCheckoutContext();
+    track("pricing_view", checkoutContextAnalyticsParams(context));
   }, []);
 
   useEffect(() => {
@@ -70,8 +72,12 @@ export function PricingCheckout() {
       return;
     }
     setBusyPack(pack);
+    const checkoutContext = getCheckoutContext();
     // Tapping Buy is the consent (18+ / Terms / no prohibited media).
-    track("billing_checkout_click", { pack });
+    track("billing_checkout_click", {
+      pack,
+      ...checkoutContextAnalyticsParams(checkoutContext),
+    });
     try {
       const walletId = getOrCreateWalletId();
       const res = await fetch("/api/billing/checkout", {
@@ -82,6 +88,7 @@ export function PricingCheckout() {
           wallet_id: walletId,
           email: cleanEmail,
           accepts_policy: true,
+          checkout_context: checkoutContext,
         }),
       });
       const raw = await res.text();
@@ -143,7 +150,11 @@ export function PricingCheckout() {
     setEmailError(null);
     const cleanEmail = validateEmailForCheckout(pack);
     if (!cleanEmail) return;
-    track("paypal_checkout_click", { pack });
+    const checkoutContext = getCheckoutContext();
+    track("paypal_checkout_click", {
+      pack,
+      ...checkoutContextAnalyticsParams(checkoutContext),
+    });
     window.open(PAYPAL_TRIAL_URL, "_blank", "noopener,noreferrer");
   };
 

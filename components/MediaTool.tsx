@@ -12,6 +12,7 @@ import {
 import { AiEnhanceBar, type AiProgress } from "@/components/AiEnhanceBar";
 import { ExampleCompare } from "@/components/ExampleCompare";
 import { CREDIT_PACKS, PAYMENTS_ENABLED } from "@/lib/billing-packs";
+import { rememberPricingIntent } from "@/lib/checkout-context";
 import { canvasToSampleBlob, uploadVoluntarySample } from "@/lib/sample-share";
 import {
   MAX_IMAGE_MB,
@@ -2102,12 +2103,13 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                 <Link
                   href="/pricing#packs"
                   className="btn-primary ai-inline-prompt-cta"
-                  onClick={() =>
+                  onClick={() => {
+                    rememberPricingIntent("preview_inline_prompt");
                     trackTool("ai_pricing_click", {
                       from: "preview_inline_prompt",
                       media_type: kind || undefined,
-                    })
-                  }
+                    });
+                  }}
                 >
                   Try AI Restore
                 </Link>
@@ -2178,8 +2180,11 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                   href="/pricing#packs"
                   className="btn-primary engage-tip-cta"
                   onClick={() => {
+                    const from =
+                      engageTip === "ai_after_save" ? "engage_tip_after_save" : "engage_tip";
+                    rememberPricingIntent(from);
                     trackTool("ai_pricing_click", {
-                      from: engageTip === "ai_after_save" ? "engage_tip_after_save" : "engage_tip",
+                      from,
                       media_type: kind || undefined,
                     });
                     setEngageTip(null);
