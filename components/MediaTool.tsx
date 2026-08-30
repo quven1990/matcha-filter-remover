@@ -1959,6 +1959,48 @@ export function MediaTool({ mode, title, subtitle }: MediaToolProps) {
                       <span className="copy-desktop">Full original · release to return</span>
                     </div>
                   )}
+                  {isRemove && !aiPass && (
+                    <div className="ai-preview-nudge" role="status">
+                      <div className="ai-preview-nudge-copy">
+                        <span className="copy-desktop">
+                          Green cast is reduced. If the face or edges still look melted, AI Restore
+                          can try a stronger frame cleanup.
+                        </span>
+                        <span className="copy-mobile">
+                          Still melted? AI Restore can try a stronger cleanup.
+                        </span>
+                      </div>
+                      {PAYMENTS_ENABLED ? (
+                        <Link
+                          href="/pricing?from=preview_nudge#packs"
+                          className="ai-preview-nudge-cta"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            rememberPricingIntent("preview_nudge");
+                            trackTool("ai_pricing_click", {
+                              from: "preview_nudge",
+                              media_type: kind || undefined,
+                            });
+                          }}
+                        >
+                          Try AI · {ENTRY_PRICE}
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          className="ai-preview-nudge-cta"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            scrollToAi("preview_nudge");
+                          }}
+                        >
+                          AI Restore
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="preview-actions">
                     <button
                       type="button"
