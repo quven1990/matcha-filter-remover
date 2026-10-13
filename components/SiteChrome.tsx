@@ -42,6 +42,12 @@ export function SiteFooter() {
         <Link href="/terms">Terms</Link>
         <Link href="/refund">Refund</Link>
         <Link href="/cookie">Cookie</Link>
+        <a href="https://momentrescue.com/" target="_blank" rel="noopener noreferrer">
+          MomentRescue
+        </a>
+        <a href="https://listingpolish.online/" target="_blank" rel="noopener noreferrer">
+          ListingPolish
+        </a>
       </div>
       <div className="footer-badges">
         <a
